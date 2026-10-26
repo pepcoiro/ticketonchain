@@ -5,15 +5,15 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title TicketNFT
- * @notice NFT representation of a TicketOnchain event ticket.
+ * @title TicketOnChain
+ * @notice NFT representation of a TicketOnChain event ticket.
  * @dev Minting is restricted to the configured marketplace. Transfers between
  *      non-zero addresses are also restricted to that marketplace, so secondary
  *      sales can enforce the project's resale rules.
  *
  *      Educational starting point: write and run tests before deployment.
  */
-contract TicketNFT is ERC721, Ownable {
+contract TicketOnChain is ERC721, Ownable {
     address public marketplace;
 
     mapping(uint256 tokenId => string uri) private _tokenURIs;
@@ -26,12 +26,12 @@ contract TicketNFT is ERC721, Ownable {
     );
 
     constructor()
-        ERC721("TicketOnchain", "TICKET")
+        ERC721("TicketOnChain", "TICKET")
         Ownable(msg.sender)
     {}
 
     modifier onlyMarketplace() {
-        require(msg.sender == marketplace, "TicketNFT: only marketplace");
+        require(msg.sender == marketplace, "TicketOnChain: only marketplace");
         _;
     }
 
@@ -40,10 +40,10 @@ contract TicketNFT is ERC721, Ownable {
      * @dev The owner is expected to be the deployer/admin during development.
      */
     function setMarketplace(address marketplaceAddress) external onlyOwner {
-        require(marketplace == address(0), "TicketNFT: marketplace already set");
+        require(marketplace == address(0), "TicketOnChain: marketplace already set");
         require(
             marketplaceAddress != address(0),
-            "TicketNFT: invalid marketplace"
+            "TicketOnChain: invalid marketplace"
         );
 
         marketplace = marketplaceAddress;
@@ -59,8 +59,8 @@ contract TicketNFT is ERC721, Ownable {
         uint256 tokenId,
         string calldata uri
     ) external onlyMarketplace {
-        require(recipient != address(0), "TicketNFT: invalid recipient");
-        require(bytes(uri).length > 0, "TicketNFT: empty token URI");
+        require(recipient != address(0), "TicketOnChain: invalid recipient");
+        require(bytes(uri).length > 0, "TicketOnChain: empty token URI");
 
         _tokenURIs[tokenId] = uri;
         _safeMint(recipient, tokenId);
@@ -93,7 +93,7 @@ contract TicketNFT is ERC721, Ownable {
         if (from != address(0) && to != address(0)) {
             require(
                 msg.sender == marketplace,
-                "TicketNFT: transfers only via marketplace"
+                "TicketOnChain: transfers only via marketplace"
             );
         }
 
