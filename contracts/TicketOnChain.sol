@@ -6,23 +6,28 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title TicketOnChain
- * @notice NFT representation of a TicketOnChain event ticket.
- * @dev Minting is restricted to the configured marketplace. Transfers between
- *      non-zero addresses are also restricted to that marketplace, so secondary
- *      sales can enforce the project's resale rules.
+ * @notice Rappresenta un biglietto per eventi come NFT sulla blockchain.
+ * @dev Solo il contratto del mercato può creare biglietti e trasferirli tra
+ *      proprietari. Questo permette al mercato di applicare le regole di rivendita.
  *
- *      Educational starting point: write and run tests before deployment.
+ *      Prima della pubblicazione su una rete reale, aggiungere ed eseguire test.
  */
 contract TicketOnChain is ERC721, Ownable {
-    address public marketplace;
+    /// @notice Indirizzo del contratto del mercato autorizzato.
+    address public mercato;
 
-    mapping(uint256 tokenId => string uri) private _tokenURIs;
+    /// @dev Associa a ogni identificativo del biglietto il suo indirizzo dei metadati.
+    mapping(uint256 identificativoBiglietto => string indirizzoMetadati)
+        private _indirizziMetadati;
 
-    event MarketplaceSet(address indexed marketplace);
-    event TicketMinted(
-        uint256 indexed tokenId,
-        address indexed recipient,
-        string tokenURI
+    /// @notice Emesso quando viene configurato il contratto del mercato.
+    event MercatoImpostato(address indicizzato indirizzoMercato);
+
+    /// @notice Emesso quando viene creato un biglietto.
+    event BigliettoCreato(
+        uint256 indicizzato identificativoBiglietto,
+        address indicizzato destinatario,
+        string indirizzoMetadati
     );
 
     constructor()
@@ -30,73 +35,95 @@ contract TicketOnChain is ERC721, Ownable {
         Ownable(msg.sender)
     {}
 
-    modifier onlyMarketplace() {
-        require(msg.sender == marketplace, "TicketOnChain: only marketplace");
+    /// @dev Limita l'esecuzione alle chiamate provenienti dal mercato autorizzato.
+    modifier soloMercato() {
+        require(msg.sender == mercato, "TicketOnChain: solo il mercato");
         _;
     }
 
     /**
-     * @notice Set the marketplace contract once.
-     * @dev The owner is expected to be the deployer/admin during development.
+     * @notice Imposta l'indirizzo del contratto del mercato.
+     * @dev Può farlo soltanto il proprietario e soltanto una volta.
      */
-    function setMarketplace(address marketplaceAddress) external onlyOwner {
-        require(marketplace == address(0), "TicketOnChain: marketplace already set");
+    function impostaMercato(address indirizzoMercato) external onlyOwner {
+        require(mercato == address(0), "TicketOnChain: mercato gia impostato");
         require(
-            marketplaceAddress != address(0),
-            "TicketOnChain: invalid marketplace"
+            indirizzoMercato != address(0),
+            "TicketOnChain: indirizzo del mercato non valido"
         );
 
-        marketplace = marketplaceAddress;
-        emit MarketplaceSet(marketplaceAddress);
+        mercato = indirizzoMercato;
+        emit MercatoImpostato(indirizzoMercato);
     }
 
     /**
-     * @notice Mint a ticket NFT to its initial owner.
-     * @dev Only the marketplace can mint tickets.
+     * @notice Crea un NFT che rappresenta un biglietto e lo assegna al destinatario.
+     * @dev Solo il mercato autorizzato può creare biglietti.
+     * @param destinatario Indirizzo del primo proprietario del biglietto.
+     * @param identificativoBiglietto Numero univoco del biglietto.
+     * @param indirizzoMetadati Indirizzo che contiene i metadati del biglietto.
      */
-    function mint(
-        address recipient,
-        uint256 tokenId,
-        string calldata uri
-    ) external onlyMarketplace {
-        require(recipient != address(0), "TicketOnChain: invalid recipient");
-        require(bytes(uri).length > 0, "TicketOnChain: empty token URI");
+    function creaBiglietto(
+        address destinatario,
+        uint256 identificativoBiglietto,
+        string calldata indirizzoMetadati
+    ) external soloMercato {
+        require(
+            destinatario != address(0),
+            "TicketOnChain: destinatario non valido"
+        );
+        require(
+            bytes(indirizzoMetadati).length > 0,
+            "TicketOnChain: indirizzo metadati vuoto"
+        );
 
-        _tokenURIs[tokenId] = uri;
-        _safeMint(recipient, tokenId);
+        _indirizziMetadati[identificativoBiglietto] = indirizzoMetadati;
+        _safeMint(destinatario, identificativoBiglietto);
 
-        emit TicketMinted(tokenId, recipient, uri);
+        emit BigliettoCreato(
+            identificativoBiglietto,
+            destinatario,
+            indirizzoMetadati
+        );
     }
 
     /**
-     * @notice Return the metadata URI associated with a ticket.
+     * @notice Restituisce l'indirizzo dei metadati associati a un biglietto.
+     * @param identificativoBiglietto Numero del biglietto da consultare.
      */
     function tokenURI(
-        uint256 tokenId
+        uint256 identificativoBiglietto
     ) public view override returns (string memory) {
-        _requireOwned(tokenId);
-        return _tokenURIs[tokenId];
+        _requireOwned(identificativoBiglietto);
+        return _indirizziMetadati[identificativoBiglietto];
     }
 
     /**
-     * @dev Prevent direct transfers between addresses. Minting and burning are
-     *      unaffected because one endpoint is address(0). Secondary transfers
-     *      must be initiated by the marketplace contract.
+     * @dev Impedisce il trasferimento diretto tra utenti: i trasferimenti
+     *      da un proprietario a un altro devono passare dal mercato.
+     *      La creazione e la distruzione non sono bloccate da questa regola.
      */
     function _update(
-        address to,
-        uint256 tokenId,
-        address auth
+        address destinatario,
+        uint256 identificativoBiglietto,
+        address autorizzazione
     ) internal override returns (address) {
-        address from = _ownerOf(tokenId);
+        address proprietarioPrecedente = _ownerOf(identificativoBiglietto);
 
-        if (from != address(0) && to != address(0)) {
+        if (
+            proprietarioPrecedente != address(0) &&
+            destinatario != address(0)
+        ) {
             require(
-                msg.sender == marketplace,
-                "TicketOnChain: transfers only via marketplace"
+                msg.sender == mercato,
+                "TicketOnChain: trasferimento consentito solo tramite mercato"
             );
         }
 
-        return super._update(to, tokenId, auth);
+        return super._update(
+            destinatario,
+            identificativoBiglietto,
+            autorizzazione
+        );
     }
 }
