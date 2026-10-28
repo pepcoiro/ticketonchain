@@ -2,6 +2,19 @@
 
 Progetto Web3 per la creazione, l'acquisto e la rivendita regolamentata di biglietti NFT.
 
+## Responsabilità, trasparenza e condizioni d'uso
+
+La bozza delle condizioni d'uso è disponibile in [docs/CONDIZIONI-D-USO-BOZZA.md](docs/CONDIZIONI-D-USO-BOZZA.md). È un documento di lavoro e non deve essere pubblicato come testo definitivo senza revisione legale.
+
+Prima del lancio, l'interfaccia deve:
+- identificare chiaramente l'organizzatore/venditore e mostrare i suoi contatti e le informazioni obbligatorie;
+- mostrare prima del pagamento il prezzo totale, le commissioni e la politica di rimborso scelta;
+- registrare la versione delle condizioni accettate dall'organizzatore e rendere consultabili le condizioni dell'acquisto;
+- distinguere assistenza tecnica della piattaforma e richieste relative all'evento;
+- prevedere un canale per segnalazioni, eventi sospetti e informazioni potenzialmente illecite.
+
+L'obiettivo è che TicketOnChain non anticipi denaro proprio per i rimborsi e che i ruoli siano effettivamente separati. Le diciture non possono eliminare obblighi inderogabili né garantire un'esenzione assoluta da responsabilità. Prima del lancio in Italia va verificato in particolare il regime applicabile al secondary ticketing e all'intermediazione di pagamenti.
+
 ## Contratti
 
 - `contracts/TicketOnChain.sol`: NFT ERC-721 dei biglietti. Solo il mercato configurato può creare o trasferire NFT tra proprietari.
