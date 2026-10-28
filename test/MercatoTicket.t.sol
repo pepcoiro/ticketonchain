@@ -130,6 +130,34 @@ contract MercatoTicketTest is Test {
         mercato.validaIngresso(1);
     }
 
+    function testOrganizzatorePuoAnnullareEventoEBloccareLeVendite() public {
+        vm.prank(organizzatore);
+        mercato.annullaEvento(1);
+
+        (,,,,,, bool attivo, bool annullato) = mercato.eventi(1);
+        assertFalse(attivo);
+        assertTrue(annullato);
+
+        vm.prank(primoAcquirente);
+        vm.expectRevert();
+        mercato.acquistaBiglietto{value: 1 ether}(1);
+    }
+
+    function testSoloOrganizzatorePuoAnnullareEvento() public {
+        vm.prank(primoAcquirente);
+        vm.expectRevert();
+        mercato.annullaEvento(1);
+    }
+
+    function testEventoAnnullatoNonPuoEssereRiattivato() public {
+        vm.prank(organizzatore);
+        mercato.annullaEvento(1);
+
+        vm.prank(organizzatore);
+        vm.expectRevert();
+        mercato.aggiornaEvento(1, 1 ether, true);
+    }
+
     function testSoloProprietarioModificaCommissione() public {
         vm.prank(primoAcquirente);
         vm.expectRevert();
