@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {TicketOnChain} from "./TicketOnChain.sol";
 
@@ -16,7 +17,7 @@ import {TicketOnChain} from "./TicketOnChain.sol";
  *      Questo è un primo contratto applicativo: va compilato e testato prima
  *      di essere utilizzato su una rete reale.
  */
-contract MercatoTicket is Ownable, ReentrancyGuard {
+contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     using Strings for uint256;
 
     /// @notice Contratto NFT utilizzato per creare e trasferire i biglietti.
@@ -93,6 +94,24 @@ contract MercatoTicket is Ownable, ReentrancyGuard {
     event SaldoPrelevato(address indexed beneficiario, uint256 importo);
     event CommissioniPrelevate(address indexed destinatario, uint256 importo);
     event CommissioneAggiornata(uint256 vecchiaCommissione, uint256 nuovaCommissione);
+
+    /**
+     * @notice Conferma la ricezione dei biglietti trasferiti in custodia al mercato.
+     * @dev ERC-721 richiede questa funzione quando si usa safeTransferFrom verso
+     *      un contratto. Accettiamo soltanto NFT provenienti dal nostro contratto.
+     */
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) external view override returns (bytes4) {
+        require(
+            msg.sender == address(contrattoBiglietti),
+            "MercatoTicket: NFT non riconosciuto"
+        );
+        return IERC721Receiver.onERC721Received.selector;
+    }
 
     constructor(address indirizzoContrattoBiglietti) Ownable(msg.sender) {
         require(
