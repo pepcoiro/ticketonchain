@@ -52,6 +52,15 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
     /// @notice Commissioni accumulate e prelevabili dal proprietario del mercato.
     uint256 public commissioniAccumulate;
 
+    /// @notice Ricavi netti delle vendite iniziali bloccati fino all'inizio dell'evento.
+    mapping(uint256 idEvento => uint256 importo) public ricaviEventoBloccati;
+
+    /// @notice Fondi accantonati per rimborsare i biglietti in caso di annullamento.
+    mapping(uint256 idEvento => uint256 importo) public fondiRimborsoEvento;
+
+    /// @notice Indica se il biglietto è già stato rimborsato.
+    mapping(uint256 idBiglietto => bool rimborsato) public bigliettiRimborsati;
+
     struct Evento {
         address organizzatore;
         string nome;
@@ -118,6 +127,8 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
     event CommissioniPrelevate(address indexed destinatario, uint256 importo);
     event CommissioneAggiornata(uint256 vecchiaCommissione, uint256 nuovaCommissione);
     event OrganizzatoreAutorizzato(address indexed organizzatore, bool autorizzato);
+    event RimborsoRichiesto(uint256 indexed idEvento, uint256 indexed idBiglietto, address indexed destinatario, uint256 importo);
+    event RicaviEventoSbloccati(uint256 indexed idEvento, address indexed organizzatore, uint256 importo);
     event AcquistoWalletRegistrato(
         uint256 indexed idEvento,
         address indexed acquirente,
@@ -267,6 +278,13 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         evento.annullato = true;
         evento.attivo = false;
 
+        // I ricavi delle vendite iniziali restano accantonati per i rimborsi.
+        // Le commissioni della piattaforma relative a questo evento vengono annullate.
+        uint256 commissioneDaRestituire = (evento.bigliettiVenduti * evento.prezzo * commissionePuntiBase) / 10_000;
+        if (commissioneDaRestituire > 0 && commissioneDaRestituire <= commissioniAccumulate) {
+            commissioniAccumulate -= commissioneDaRestituire;
+        }
+
         emit EventoAnnullato(idEvento, msg.sender);
     }
 
@@ -304,7 +322,8 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         );
         // Aggiorna prima lo stato e i saldi, prima della chiamata esterna al contratto NFT.
         uint256 commissione = (msg.value * commissionePuntiBase) / 10_000;
-        saldiPrelevabili[evento.organizzatore] += msg.value - commissione;
+        ricaviEventoBloccati[idEvento] += msg.value - commissione;
+        fondiRimborsoEvento[idEvento] += msg.value;
         commissioniAccumulate += commissione;
 
         // Se la creazione dell'NFT fallisce, l'intera transazione viene annullata.
@@ -458,6 +477,44 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
      * @notice Preleva il saldo accumulato da vendite iniziali o rivendite.
      * @dev Il saldo viene azzerato prima dell'invio per impedire doppi prelievi.
      */
+    function prelevaRicaviEvento(uint256 idEvento) external nonReentrant {
+        Evento storage evento = eventi[idEvento];
+        require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
+        require(!evento.annullato, "MercatoTicket: evento annullato");
+        require(block.timestamp >= evento.timestampInizio, "MercatoTicket: evento non iniziato");
+
+        uint256 importo = ricaviEventoBloccati[idEvento];
+        require(importo > 0, "MercatoTicket: nessun ricavo da prelevare");
+        ricaviEventoBloccati[idEvento] = 0;
+        saldiPrelevabili[msg.sender] += importo;
+
+        emit RicaviEventoSbloccati(idEvento, msg.sender, importo);
+    }
+
+    function richiediRimborso(uint256 idBiglietto) external nonReentrant {
+        uint256 idEvento = eventoDelBiglietto[idBiglietto];
+        require(idEvento != 0, "MercatoTicket: biglietto non riconosciuto");
+        Evento storage evento = eventi[idEvento];
+        require(evento.annullato, "MercatoTicket: evento non annullato");
+        require(!bigliettiRimborsati[idBiglietto], "MercatoTicket: biglietto gia rimborsato");
+        require(
+            contrattoBiglietti.ownerOf(idBiglietto) == msg.sender,
+            "MercatoTicket: solo proprietario del biglietto"
+        );
+
+        uint256 importo = prezzoAcquistoOriginale[idBiglietto];
+        require(fondiRimborsoEvento[idEvento] >= importo, "MercatoTicket: fondi rimborso insufficienti");
+
+        bigliettiRimborsati[idBiglietto] = true;
+        fondiRimborsoEvento[idEvento] -= importo;
+        contrattoBiglietti.burn(idBiglietto);
+
+        (bool riuscito, ) = payable(msg.sender).call{value: importo}("");
+        require(riuscito, "MercatoTicket: trasferimento rimborso fallito");
+
+        emit RimborsoRichiesto(idEvento, idBiglietto, msg.sender, importo);
+    }
+
     function prelevaSaldo() external nonReentrant {
         uint256 importo = saldiPrelevabili[msg.sender];
         require(importo > 0, "MercatoTicket: saldo vuoto");
