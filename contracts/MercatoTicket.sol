@@ -69,6 +69,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         string nome;
         string uriMetadatiBase;
         uint256 timestampInizio;
+        uint256 timestampFine;
         uint256 prezzo;
         uint256 quantitaMassima;
         uint256 bigliettiVenduti;
@@ -84,6 +85,9 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
 
     /// @notice Dati degli eventi registrati nel mercato.
     mapping(uint256 idEvento => Evento dati) public eventi;
+
+    /// @notice Addetti autorizzati dall'organizzatore a convalidare gli ingressi.
+    mapping(uint256 idEvento => mapping(address validatore => bool autorizzato)) public validatoriIngresso;
 
     /// @notice Evento di appartenenza per ciascun biglietto creato dal mercato.
     mapping(uint256 idBiglietto => uint256 idEvento) public eventoDelBiglietto;
@@ -103,7 +107,8 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         string nome,
         uint256 prezzo,
         uint256 quantitaMassima,
-        uint256 timestampInizio
+        uint256 timestampInizio,
+        uint256 timestampFine
     );
     event EventoAggiornato(uint256 indexed idEvento, bool attivo, uint256 prezzo);
     event EventoAnnullato(uint256 indexed idEvento, address indexed organizzatore);
@@ -138,6 +143,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         uint256 quantitaTotale
     );
     event IngressoValidato(uint256 indexed idEvento, uint256 indexed idBiglietto, address indexed validatore);
+    event ValidatoreIngressoImpostato(uint256 indexed idEvento, address indexed validatore, bool autorizzato);
 
     /**
      * @notice Conferma la ricezione dei biglietti trasferiti in custodia al mercato.
@@ -200,13 +206,15 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
      * @param prezzoBiglietto Prezzo di un biglietto in ETH (espresso in wei).
      * @param quantitaMassima Numero totale di biglietti emettibili per l'evento.
      * @param timestampInizio Data e ora di inizio dell'evento come timestamp Unix in secondi.
+     * @param timestampFine Data e ora di fine dell'evento come timestamp Unix in secondi.
      */
     function creaEvento(
         string calldata nomeEvento,
         string calldata uriMetadatiBase,
         uint256 prezzoBiglietto,
         uint256 quantitaMassima,
-        uint256 timestampInizio
+        uint256 timestampInizio,
+        uint256 timestampFine
     ) external whenNotPaused returns (uint256 idEvento) {
         require(
             organizzatoriAutorizzati[msg.sender],
@@ -217,6 +225,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         require(prezzoBiglietto > 0, "MercatoTicket: prezzo non valido");
         require(quantitaMassima > 0, "MercatoTicket: quantita non valida");
         require(timestampInizio > block.timestamp, "MercatoTicket: data evento non futura");
+        require(timestampFine > timestampInizio, "MercatoTicket: data fine non valida");
 
         idEvento = prossimoIdEvento;
         prossimoIdEvento += 1;
@@ -226,6 +235,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
             nome: nomeEvento,
             uriMetadatiBase: uriMetadatiBase,
             timestampInizio: timestampInizio,
+            timestampFine: timestampFine,
             prezzo: prezzoBiglietto,
             quantitaMassima: quantitaMassima,
             bigliettiVenduti: 0,
@@ -239,7 +249,8 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
             nomeEvento,
             prezzoBiglietto,
             quantitaMassima,
-            timestampInizio
+            timestampInizio,
+            timestampFine
         );
     }
 
@@ -255,6 +266,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
         require(!evento.annullato, "MercatoTicket: evento annullato");
+        require(block.timestamp < evento.timestampInizio, "MercatoTicket: evento gia iniziato");
         require(nuovoPrezzo > 0, "MercatoTicket: prezzo non valido");
         require(
             evento.bigliettiVenduti < evento.quantitaMassima || !attivo,
@@ -421,6 +433,20 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
     }
 
     /**
+     * @notice Autorizza o revoca un addetto alla convalida degli ingressi.
+     * @dev Solo l'organizzatore dell'evento può gestire i propri validatori.
+     */
+    function impostaValidatoreIngresso(uint256 idEvento, address validatore, bool autorizzato) external {
+        Evento storage evento = eventi[idEvento];
+        require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
+        require(!evento.annullato, "MercatoTicket: evento annullato");
+        require(block.timestamp < evento.timestampFine, "MercatoTicket: evento terminato");
+        require(validatore != address(0), "MercatoTicket: validatore non valido");
+        validatoriIngresso[idEvento][validatore] = autorizzato;
+        emit ValidatoreIngressoImpostato(idEvento, validatore, autorizzato);
+    }
+
+    /**
      * @notice Registra l'ingresso di un biglietto all'evento.
      * @dev In questa prima versione soltanto l'organizzatore dell'evento può
      *      convalidare l'ingresso. Un biglietto in custodia per la rivendita non
@@ -433,9 +459,11 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         Evento storage evento = eventi[idEvento];
         require(!evento.annullato, "MercatoTicket: evento annullato");
         require(
-            evento.organizzatore == msg.sender,
-            "MercatoTicket: solo organizzatore"
+            evento.organizzatore == msg.sender || validatoriIngresso[idEvento][msg.sender],
+            "MercatoTicket: non sei un validatore autorizzato"
         );
+        require(block.timestamp >= evento.timestampInizio, "MercatoTicket: evento non iniziato");
+        require(block.timestamp <= evento.timestampFine, "MercatoTicket: evento terminato");
         require(!ingressiUtilizzati[idBiglietto], "MercatoTicket: ingresso gia utilizzato");
         require(
             contrattoBiglietti.ownerOf(idBiglietto) != address(this),
