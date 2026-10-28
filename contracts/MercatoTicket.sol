@@ -47,6 +47,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
         uint256 quantitaMassima;
         uint256 bigliettiVenduti;
         bool attivo;
+        bool annullato;
     }
 
     struct AnnuncioRivendita {
@@ -75,6 +76,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
         uint256 quantitaMassima
     );
     event EventoAggiornato(uint256 indexed idEvento, bool attivo, uint256 prezzo);
+    event EventoAnnullato(uint256 indexed idEvento, address indexed organizzatore);
     event BigliettoAcquistato(
         uint256 indexed idEvento,
         uint256 indexed idBiglietto,
@@ -154,7 +156,8 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
             prezzo: prezzoBiglietto,
             quantitaMassima: quantitaMassima,
             bigliettiVenduti: 0,
-            attivo: true
+            attivo: true,
+            annullato: false
         });
 
         emit EventoCreato(
@@ -177,6 +180,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     ) external {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
+        require(!evento.annullato, "MercatoTicket: evento annullato");
         require(nuovoPrezzo > 0, "MercatoTicket: prezzo non valido");
         require(
             evento.bigliettiVenduti < evento.quantitaMassima || !attivo,
@@ -190,6 +194,23 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     /**
+     * @notice Annulla definitivamente un evento.
+     * @dev L'annullamento blocca vendite, rivendite e convalida ingressi.
+     *      Non esegue rimborsi automatici: la gestione dei rimborsi resta a carico
+     *      dell'organizzatore, secondo le condizioni applicabili.
+     */
+    function annullaEvento(uint256 idEvento) external {
+        Evento storage evento = eventi[idEvento];
+        require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
+        require(!evento.annullato, "MercatoTicket: evento gia annullato");
+
+        evento.annullato = true;
+        evento.attivo = false;
+
+        emit EventoAnnullato(idEvento, msg.sender);
+    }
+
+    /**
      * @notice Acquista un biglietto nuovo pagando in ETH.
      * @dev La commissione viene accantonata e il ricavo netto diventa prelevabile
      *      dall'organizzatore. Il pagamento non viene inviato direttamente durante
@@ -198,6 +219,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     function acquistaBiglietto(uint256 idEvento) external payable nonReentrant {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore != address(0), "MercatoTicket: evento inesistente");
+        require(!evento.annullato, "MercatoTicket: evento annullato");
         require(evento.attivo, "MercatoTicket: vendite sospese");
         require(
             evento.bigliettiVenduti < evento.quantitaMassima,
@@ -240,6 +262,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
             contrattoBiglietti.ownerOf(idBiglietto) == msg.sender,
             "MercatoTicket: non sei proprietario"
         );
+        require(!eventi[eventoDelBiglietto[idBiglietto]].annullato, "MercatoTicket: evento annullato");
         require(prezzoRichiesto > 0, "MercatoTicket: prezzo non valido");
         require(!ingressiUtilizzati[idBiglietto], "MercatoTicket: biglietto gia utilizzato");
         require(!rivendite[idBiglietto].attivo, "MercatoTicket: annuncio gia attivo");
@@ -277,6 +300,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     function acquistaRivendita(uint256 idBiglietto) external payable nonReentrant {
         AnnuncioRivendita memory annuncio = rivendite[idBiglietto];
         require(annuncio.attivo, "MercatoTicket: annuncio non attivo");
+        require(!eventi[eventoDelBiglietto[idBiglietto]].annullato, "MercatoTicket: evento annullato");
         require(msg.sender != annuncio.venditore, "MercatoTicket: non puoi acquistare il tuo biglietto");
         require(msg.value == annuncio.prezzo, "MercatoTicket: importo non corretto");
         require(
@@ -312,6 +336,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
         require(idEvento != 0, "MercatoTicket: biglietto non riconosciuto");
 
         Evento storage evento = eventi[idEvento];
+        require(!evento.annullato, "MercatoTicket: evento annullato");
         require(
             evento.organizzatore == msg.sender,
             "MercatoTicket: solo organizzatore"
