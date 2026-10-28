@@ -1,0 +1,31 @@
+name: Test contratti Solidity
+
+on:
+  push:
+    branches:
+      - main
+      - "sviluppo/**"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scarica il repository
+        uses: actions/checkout@v4
+
+      - name: Installa Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Installa OpenZeppelin
+        run: forge install OpenZeppelin/openzeppelin-contracts@v5.0.2 --no-commit
+
+      - name: Installa strumenti di test
+        run: forge install foundry-rs/forge-std --no-commit
+
+      - name: Compila e avvia i test
+        run: forge test -vv
