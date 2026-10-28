@@ -16,6 +16,10 @@ Progetto Web3 per la creazione, l'acquisto e la rivendita regolamentata di bigli
 
 Questi accorgimenti non sostituiscono una revisione indipendente del codice. Il contratto non è pronto per la rete principale finché non sarà compilato, testato e sottoposto a revisione.
 
+## Data dell'evento e chiusura delle vendite
+
+Ogni evento deve essere creato con un timestamp Unix futuro che indica la data e l'ora di inizio. Il mercato blocca gli acquisti iniziali e le rivendite quando l'evento è iniziato. Il timestamp è espresso in secondi, non in millisecondi. La funzione `creaEvento` richiede quindi anche il parametro `timestampInizio`.
+
 ## Organizzatori autorizzati
 
 Solo gli indirizzi autorizzati dall'amministratore possono creare eventi. L'indirizzo che distribuisce il contratto del mercato è autorizzato automaticamente. L'amministratore può autorizzare o revocare altri indirizzi con `impostaOrganizzatore(indirizzo, true/false)`.
