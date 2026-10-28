@@ -448,9 +448,9 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
 
     /**
      * @notice Registra l'ingresso di un biglietto all'evento.
-     * @dev In questa prima versione soltanto l'organizzatore dell'evento può
-     *      convalidare l'ingresso. Un biglietto in custodia per la rivendita non
-     *      può essere convalidato e un biglietto già usato non può entrare di nuovo.
+     * @dev Possono convalidare l'organizzatore e i validatori autorizzati.
+     *      La convalida è ammessa soltanto nella finestra temporale dell'evento.
+     *      Un biglietto in rivendita o già utilizzato non può essere convalidato.
      */
     function validaIngresso(uint256 idBiglietto) external {
         uint256 idEvento = eventoDelBiglietto[idBiglietto];
