@@ -13,6 +13,8 @@ Il mercato richiede la verifica tramite il registro Cross-Chain Proof of Humanit
 
 Ogni persona può acquistare al massimo 6 biglietti per evento. Il conteggio è associato all'identificativo umano restituito da `humanityOf(wallet)`, non al singolo wallet, e si applica sia agli acquisti iniziali sia alle rivendite. È un conteggio cumulativo: vendere o trasferire un biglietto non restituisce capacità di acquisto.
 
+La rivendita è consentita esclusivamente al prezzo originariamente pagato per quel biglietto: non sono ammessi né sovrapprezzi né sconti. Il prezzo originario viene registrato on-chain al momento del primo acquisto e resta invariato nelle rivendite successive.
+
 La verifica on-chain riduce l'aggiramento del limite tramite wallet multipli, ma non elimina ogni possibile frode e dipende dalla correttezza, disponibilità e semantica del registro esterno. Prima del deployment occorre confermare l'indirizzo del registro per la rete scelta e testare l'integrazione.
 
 ## Annullamento degli eventi
