@@ -92,6 +92,44 @@ contract MercatoTicketTest is Test {
         assertFalse(attivo);
     }
 
+    function testOrganizzatorePuoConvalidareIngressoUnaSolaVolta() public {
+        vm.prank(primoAcquirente);
+        mercato.acquistaBiglietto{value: 1 ether}(1);
+
+        vm.prank(organizzatore);
+        mercato.validaIngresso(1);
+
+        assertTrue(mercato.ingressiUtilizzati(1));
+
+        vm.prank(organizzatore);
+        vm.expectRevert();
+        mercato.validaIngresso(1);
+    }
+
+    function testUnUtenteNonPuoConvalidareIngressi() public {
+        vm.prank(primoAcquirente);
+        mercato.acquistaBiglietto{value: 1 ether}(1);
+
+        vm.prank(primoAcquirente);
+        vm.expectRevert();
+        mercato.validaIngresso(1);
+    }
+
+    function testBigliettoInRivenditaNonPuoEssereConvalidato() public {
+        vm.prank(primoAcquirente);
+        mercato.acquistaBiglietto{value: 1 ether}(1);
+
+        vm.prank(primoAcquirente);
+        biglietti.approve(address(mercato), 1);
+
+        vm.prank(primoAcquirente);
+        mercato.mettiInRivendita(1, 2 ether);
+
+        vm.prank(organizzatore);
+        vm.expectRevert();
+        mercato.validaIngresso(1);
+    }
+
     function testSoloProprietarioModificaCommissione() public {
         vm.prank(primoAcquirente);
         vm.expectRevert();
