@@ -5,7 +5,11 @@ Progetto Web3 per la creazione, l'acquisto e la rivendita regolamentata di bigli
 ## Contratti
 
 - `contracts/TicketOnChain.sol`: NFT ERC-721 dei biglietti. Solo il mercato configurato può creare o trasferire NFT tra proprietari.
-- `contracts/MercatoTicket.sol`: registrazione eventi, vendita iniziale, custodia dei biglietti in rivendita, acquisti e gestione dei saldi e delle commissioni.
+- `contracts/MercatoTicket.sol`: registrazione e annullamento eventi, vendita iniziale, custodia dei biglietti in rivendita, acquisti e gestione dei saldi e delle commissioni.
+
+## Annullamento degli eventi
+
+L'organizzatore può annullare definitivamente un evento tramite `annullaEvento(idEvento)`. L'annullamento blocca nuove vendite, nuove rivendite e la convalida degli ingressi. Non è previsto un rimborso automatico dal contratto: la gestione dei rimborsi è a carico dell'organizzatore, secondo le condizioni applicabili. La piattaforma non anticipa fondi propri.
 
 I nomi delle funzioni e i commenti del progetto sono in italiano per rendere il codice più comprensibile durante lo sviluppo.
 
