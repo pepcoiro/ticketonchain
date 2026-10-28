@@ -40,15 +40,22 @@ L'integrazione Proof of Humanity è stata rimossa temporaneamente. Per ora il co
 
 La rivendita è consentita esclusivamente al prezzo originariamente pagato per quel biglietto: non sono ammessi né sovrapprezzi né sconti. Il prezzo originario viene registrato on-chain al momento del primo acquisto e resta invariato nelle rivendite successive. La rivendita non restituisce capacità di acquisto al wallet del venditore.
 
-## Fondi, annullamenti e rimborsi
+## Politica di rimborso scelta dall'organizzatore
 
-I ricavi delle vendite iniziali e le relative commissioni restano accantonati fino all'inizio dell'evento. L'organizzatore può sbloccare i ricavi con `prelevaRicaviEvento(idEvento)` soltanto dall'orario di inizio in poi. Le commissioni iniziali diventano prelevabili nello stesso momento.
+Alla creazione dell'evento, l'organizzatore deve scegliere il parametro `politicaRimborso`:
 
-L'organizzatore può annullare l'evento soltanto prima dell'orario di inizio. In caso di annullamento, il proprietario attuale di ciascun biglietto può chiamare `richiediRimborso(idBiglietto)`: riceve il prezzo originario in ETH e il biglietto NFT viene distrutto. Ogni biglietto può essere rimborsato una sola volta. Se il biglietto è custodito dal mercato in una rivendita, il venditore deve prima annullare l'annuncio per riottenere il biglietto.
+- `FondiBloccati` (valore enum `0`): gli incassi netti e le commissioni restano nel contratto fino all'inizio dell'evento. L'organizzatore può sbloccare gli incassi con `prelevaRicaviEvento(idEvento)` solo dall'orario di inizio. Se l'evento viene annullato prima dell'inizio, i possessori attuali dei biglietti possono richiedere on-chain il prezzo originario con `richiediRimborso(idBiglietto)`. Il biglietto NFT viene distrutto dopo il rimborso. Se è in custodia per una rivendita, il venditore deve prima annullare l'annuncio.
+- `IncassiAnticipati` (valore enum `1`): il netto della vendita diventa subito prelevabile dall'organizzatore e la commissione diventa subito disponibile alla piattaforma. In questa modalità il contratto non accantona fondi per i rimborsi e `richiediRimborso` non è disponibile. Eventuali rimborsi devono essere gestiti dall'organizzatore al di fuori del rimborso automatico del contratto.
 
-I ricavi iniziali non vengono versati all'organizzatore prima dell'evento, così rimangono disponibili per finanziare i rimborsi. Le somme pagate nelle rivendite vengono invece accreditate al venditore come saldo prelevabile; i rimborsi per annullamento sono coperti dall'accantonamento della vendita iniziale. Gli eventi annullati non sbloccano i ricavi iniziali né le commissioni iniziali.
+La scelta è registrata nell'evento e non può essere cambiata con le funzioni attuali. L'interfaccia deve mostrare la politica prima dell'acquisto e mantenere una dicitura coerente:
 
-Questa è una logica di rimborso on-chain iniziale e non sostituisce la definizione delle condizioni contrattuali, la verifica della solvibilità in tutti i casi limite e una revisione indipendente prima della rete principale.
+**FondiBloccati:** «In caso di annullamento, è previsto il rimborso del prezzo del biglietto. Gli incassi sono custoditi nel contratto fino all'inizio dell'evento.»
+
+**IncassiAnticipati:** «L'organizzatore può prelevare gli incassi prima dell'evento. In caso di annullamento, non è prevista una garanzia automatica di rimborso finanziata dalla piattaforma.»
+
+La piattaforma non anticipa fondi propri. La dicitura informativa non elimina eventuali obblighi legali dell'organizzatore o della piattaforma: condizioni d'uso e comunicazioni agli acquirenti devono essere verificate rispetto alla normativa applicabile.
+
+La modalità `FondiBloccati` riguarda gli incassi iniziali; le somme pagate per le rivendite vengono accreditate al venditore come saldo prelevabile. Questa implementazione non è stata compilata né testata in questa fase.
 
 I nomi delle funzioni e i commenti del progetto sono in italiano per rendere il codice più comprensibile durante lo sviluppo.
 
