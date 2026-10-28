@@ -22,12 +22,12 @@ contract TicketOnChain is ERC721, Ownable {
         private _indirizziMetadati;
 
     /// @notice Emesso quando viene configurato il contratto del mercato.
-    event MercatoImpostato(address indicizzato indirizzoMercato);
+    event MercatoImpostato(address indexed indirizzoMercato);
 
     /// @notice Emesso quando viene creato un biglietto.
     event BigliettoCreato(
-        uint256 indicizzato identificativoBiglietto,
-        address indicizzato destinatario,
+        uint256 indexed identificativoBiglietto,
+        address indexed destinatario,
         string indirizzoMetadati
     );
 
