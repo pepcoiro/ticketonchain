@@ -7,15 +7,21 @@ Progetto Web3 per la creazione, l'acquisto e la rivendita regolamentata di bigli
 - `contracts/TicketOnChain.sol`: NFT ERC-721 dei biglietti. Solo il mercato configurato può creare o trasferire NFT tra proprietari.
 - `contracts/MercatoTicket.sol`: registrazione e annullamento eventi, vendita iniziale, custodia dei biglietti in rivendita, acquisti e gestione dei saldi e delle commissioni.
 
-## Verifica delle persone e limite di acquisto
+## Organizzatori autorizzati
 
-Il mercato richiede la verifica tramite il registro Cross-Chain Proof of Humanity v2. Prima di abilitare le vendite, il proprietario deve chiamare `impostaVerificatoreUmanita(indirizzo)` con l'indirizzo ufficiale del registro cross-chain corretto per la rete di deployment. L'indirizzo può essere impostato una sola volta; gli acquisti iniziali e le rivendite sono bloccati se il registro non è configurato o se l'acquirente non risulta una persona verificata.
+Solo gli indirizzi autorizzati dall'amministratore possono creare eventi. L'indirizzo che distribuisce il contratto del mercato è autorizzato automaticamente. L'amministratore può autorizzare o revocare altri indirizzi con `impostaOrganizzatore(indirizzo, true/false)`.
 
-Ogni persona può acquistare al massimo 6 biglietti per evento. Il conteggio è associato all'identificativo umano restituito da `humanityOf(wallet)`, non al singolo wallet, e si applica sia agli acquisti iniziali sia alle rivendite. È un conteggio cumulativo: vendere o trasferire un biglietto non restituisce capacità di acquisto.
+La revoca impedisce all'indirizzo di creare nuovi eventi, ma non cambia automaticamente i permessi relativi agli eventi che ha già creato.
 
-La rivendita è consentita esclusivamente al prezzo originariamente pagato per quel biglietto: non sono ammessi né sovrapprezzi né sconti. Il prezzo originario viene registrato on-chain al momento del primo acquisto e resta invariato nelle rivendite successive.
+## Limite temporaneo per gli acquisti
 
-La verifica on-chain riduce l'aggiramento del limite tramite wallet multipli, ma non elimina ogni possibile frode e dipende dalla correttezza, disponibilità e semantica del registro esterno. Prima del deployment occorre confermare l'indirizzo del registro per la rete scelta e testare l'integrazione.
+L'integrazione Proof of Humanity è stata rimossa temporaneamente. Per ora il contratto applica un limite cumulativo di 6 biglietti per wallet e per evento, sia per gli acquisti iniziali sia per le rivendite. Il conteggio non diminuisce quando un biglietto viene rivenduto.
+
+**Limite noto:** senza un sistema d'identità, una persona può aggirare il limite usando wallet diversi. Il limite attuale è quindi per wallet, non per persona. Un sistema di verifica dell'identità verrà valutato e integrato in una fase successiva.
+
+## Regole di rivendita
+
+La rivendita è consentita esclusivamente al prezzo originariamente pagato per quel biglietto: non sono ammessi né sovrapprezzi né sconti. Il prezzo originario viene registrato on-chain al momento del primo acquisto e resta invariato nelle rivendite successive. La rivendita non restituisce capacità di acquisto al wallet del venditore.
 
 ## Annullamento degli eventi
 
@@ -25,14 +31,15 @@ I nomi delle funzioni e i commenti del progetto sono in italiano per rendere il 
 
 ## Sviluppo
 
-In questa fase il progetto è dedicato all'implementazione dei contratti. Le verifiche automatiche e i test verranno reintrodotti in una fase successiva.
+In questa fase il progetto è dedicato all'implementazione dei contratti. Le verifiche automatiche e i test verranno reintrodotti in una fase successiva, quando le funzionalità principali saranno completate.
 
 ## Ordine di pubblicazione su una rete di prova
 
 1. Pubblica `TicketOnChain`.
 2. Pubblica `MercatoTicket` passando al costruttore l'indirizzo del contratto NFT.
 3. Dal proprietario di `TicketOnChain`, esegui `impostaMercato(indirizzoMercato)`.
-4. Crea un evento e prova acquisto, approvazione, rivendita e prelievo.
+4. L'amministratore autorizza gli organizzatori tramite `impostaOrganizzatore(indirizzo, true)`.
+5. Crea un evento e prova acquisto, approvazione, rivendita e prelievo quando la fase di test verrà avviata.
 
 **Attenzione:** l'indirizzo del mercato può essere impostato una sola volta. Controlla l'indirizzo prima di confermare la transazione.
 
@@ -42,4 +49,4 @@ Per un evento con URI base `ipfs://CID/`, il mercato associa al biglietto con id
 
 ## Stato
 
-Prototipo in sviluppo. In questa fase si stanno implementando le funzionalità dei contratti; test e verifiche saranno affrontati successivamente.
+Prototipo in sviluppo. La verifica dell'identità è rimandata; il limite attuale è applicato per wallet. Test e verifiche saranno affrontati successivamente.
