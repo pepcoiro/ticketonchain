@@ -7,8 +7,9 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 /**
  * @title TicketOnChain
  * @notice Rappresenta un biglietto per eventi come NFT sulla blockchain.
- * @dev Solo il contratto del mercato può creare biglietti e trasferirli tra
- *      proprietari. Questo permette al mercato di applicare le regole di rivendita.
+ * @dev Solo il contratto del mercato autorizzato può creare biglietti e trasferirli
+ *      tra proprietari. Il mercato è quindi un componente privilegiato: va verificato
+ *      con test prima di collegarlo a questo contratto.
  *
  *      Prima della pubblicazione su una rete reale, aggiungere ed eseguire test.
  */
@@ -44,6 +45,8 @@ contract TicketOnChain is ERC721, Ownable {
     /**
      * @notice Imposta l'indirizzo del contratto del mercato.
      * @dev Può farlo soltanto il proprietario e soltanto una volta.
+     *      Verificare con attenzione l'indirizzo prima di confermare la transazione:
+     *      dopo l'impostazione non sarà possibile cambiarlo.
      */
     function impostaMercato(address indirizzoMercato) external onlyOwner {
         require(mercato == address(0), "TicketOnChain: mercato gia impostato");
@@ -58,7 +61,8 @@ contract TicketOnChain is ERC721, Ownable {
 
     /**
      * @notice Crea un NFT che rappresenta un biglietto e lo assegna al destinatario.
-     * @dev Solo il mercato autorizzato può creare biglietti.
+     * @dev Solo il mercato autorizzato può creare biglietti. Un identificativo già
+     *      utilizzato non può essere riutilizzato, neppure per un altro evento.
      * @param destinatario Indirizzo del primo proprietario del biglietto.
      * @param identificativoBiglietto Numero univoco del biglietto.
      * @param indirizzoMetadati Indirizzo che contiene i metadati del biglietto.
@@ -77,6 +81,14 @@ contract TicketOnChain is ERC721, Ownable {
             "TicketOnChain: indirizzo metadati vuoto"
         );
 
+        // Controllo esplicito: ogni identificativo può rappresentare un solo biglietto.
+        // ERC-721 bloccherebbe già un duplicato, ma questo controllo rende chiara
+        // la regola e impedisce di modificare i metadati prima di tentare la creazione.
+        require(
+            _ownerOf(identificativoBiglietto) == address(0),
+            "TicketOnChain: biglietto gia esistente"
+        );
+
         _indirizziMetadati[identificativoBiglietto] = indirizzoMetadati;
         _safeMint(destinatario, identificativoBiglietto);
 
@@ -88,7 +100,7 @@ contract TicketOnChain is ERC721, Ownable {
     }
 
     /**
-     * @notice Restituisce l'indirizzo dei metadati associati a un biglietto.
+     * @notice Restituisce l'URI dei metadati associati a un biglietto.
      * @param identificativoBiglietto Numero del biglietto da consultare.
      */
     function tokenURI(
