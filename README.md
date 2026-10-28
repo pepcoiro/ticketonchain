@@ -36,9 +36,15 @@ L'integrazione Proof of Humanity è stata rimossa temporaneamente. Per ora il co
 
 La rivendita è consentita esclusivamente al prezzo originariamente pagato per quel biglietto: non sono ammessi né sovrapprezzi né sconti. Il prezzo originario viene registrato on-chain al momento del primo acquisto e resta invariato nelle rivendite successive. La rivendita non restituisce capacità di acquisto al wallet del venditore.
 
-## Annullamento degli eventi
+## Fondi, annullamenti e rimborsi
 
-L'organizzatore può annullare definitivamente un evento tramite `annullaEvento(idEvento)`. L'annullamento blocca nuove vendite, nuove rivendite e la convalida degli ingressi. Non è previsto un rimborso automatico dal contratto: la gestione dei rimborsi è a carico dell'organizzatore, secondo le condizioni applicabili. La piattaforma non anticipa fondi propri.
+I ricavi delle vendite iniziali e le relative commissioni restano accantonati fino all'inizio dell'evento. L'organizzatore può sbloccare i ricavi con `prelevaRicaviEvento(idEvento)) soltanto dall'orario di inizio in poi. Le commissioni iniziali diventano prelevabili nello stesso momento.
+
+L'organizzatore può annullare l'evento soltanto prima dell'orario di inizio. In caso di annullamento, il proprietario attuale di ciascun biglietto può chiamare `richiediRimborso(idBiglietto)`: riceve il prezzo originario in ETH e il biglietto NFT viene distrutto. Ogni biglietto può essere rimborsato una sola volta. Se il biglietto è custodito dal mercato in una rivendita, il venditore deve prima annullare l'annuncio per riottenere il biglietto.
+
+I ricavi iniziali non vengono versati all'organizzatore prima dell'evento, così rimangono disponibili per finanziare i rimborsi. Le somme pagate nelle rivendite vengono invece accreditate al venditore come saldo prelevabile; i rimborsi per annullamento sono coperti dall'accantonamento della vendita iniziale. Gli eventi annullati non sbloccano i ricavi iniziali né le commissioni iniziali.
+
+Questa è una logica di rimborso on-chain iniziale e non sostituisce la definizione delle condizioni contrattuali, la verifica della solvibilità in tutti i casi limite e una revisione indipendente prima della rete principale.
 
 I nomi delle funzioni e i commenti del progetto sono in italiano per rendere il codice più comprensibile durante lo sviluppo.
 
