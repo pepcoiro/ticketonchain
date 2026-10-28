@@ -82,6 +82,9 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     /// @notice Annunci di rivendita indicizzati per identificativo del biglietto.
     mapping(uint256 idBiglietto => AnnuncioRivendita annuncio) public rivendite;
 
+    /// @notice Prezzo originario pagato per ciascun biglietto, invariabile nelle rivendite.
+    mapping(uint256 idBiglietto => uint256 prezzo) public prezzoAcquistoOriginale;
+
     /// @notice Indica se un biglietto è già stato utilizzato per entrare all'evento.
     mapping(uint256 idBiglietto => bool utilizzato) public ingressiUtilizzati;
 
@@ -279,6 +282,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
 
         // Registra prima l'appartenenza del biglietto, poi crea l'NFT.
         eventoDelBiglietto[idBiglietto] = idEvento;
+        prezzoAcquistoOriginale[idBiglietto] = msg.value;
         string memory uriBiglietto = string.concat(
             evento.uriMetadatiBase,
             idBiglietto.toString(),
@@ -294,8 +298,9 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     /**
-     * @notice Mette in rivendita un biglietto già acquistato.
-     * @dev Il venditore deve prima autorizzare questo contratto NFT con
+     * @notice Mette in rivendita un biglietto già acquistato esclusivamente al prezzo originario.
+     * @dev Il prezzo di rivendita non può essere superiore né inferiore al prezzo pagato inizialmente.
+     *      Il venditore deve prima autorizzare questo contratto NFT con
      *      approve() oppure setApprovalForAll(). Il biglietto viene custodito
      *      dal mercato fino all'acquisto o all'annullamento dell'annuncio.
      */
@@ -310,6 +315,10 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
         );
         require(!eventi[eventoDelBiglietto[idBiglietto]].annullato, "MercatoTicket: evento annullato");
         require(prezzoRichiesto > 0, "MercatoTicket: prezzo non valido");
+        require(
+            prezzoRichiesto == prezzoAcquistoOriginale[idBiglietto],
+            "MercatoTicket: rivendita solo al prezzo originale"
+        );
         require(!ingressiUtilizzati[idBiglietto], "MercatoTicket: biglietto gia utilizzato");
         require(!rivendite[idBiglietto].attivo, "MercatoTicket: annuncio gia attivo");
 
