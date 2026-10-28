@@ -18,13 +18,17 @@ Questi accorgimenti non sostituiscono una revisione indipendente del codice. Il 
 
 ## Data dell'evento e chiusura delle vendite
 
-Ogni evento deve essere creato con un timestamp Unix futuro che indica la data e l'ora di inizio. Il mercato blocca gli acquisti iniziali e le rivendite quando l'evento è iniziato. Il timestamp è espresso in secondi, non in millisecondi. La funzione `creaEvento` richiede quindi anche il parametro `timestampInizio`.
+Ogni evento deve essere creato con due timestamp Unix futuri: `timestampInizio` e `timestampFine`, espressi in secondi. La fine deve essere successiva all'inizio. Acquisti e rivendite si chiudono all'inizio; la convalida degli ingressi è possibile solo tra inizio e fine. Il prezzo e lo stato delle vendite possono essere modificati dall'organizzatore solo prima dell'inizio.
 
 ## Organizzatori autorizzati
 
 Solo gli indirizzi autorizzati dall'amministratore possono creare eventi. L'indirizzo che distribuisce il contratto del mercato è autorizzato automaticamente. L'amministratore può autorizzare o revocare altri indirizzi con `impostaOrganizzatore(indirizzo, true/false)`.
 
 La revoca impedisce all'indirizzo di creare nuovi eventi, ma non cambia automaticamente i permessi relativi agli eventi che ha già creato.
+
+## Convalida degli ingressi
+
+L'organizzatore può autorizzare o revocare gli addetti all'ingresso per ogni evento con `impostaValidatoreIngresso(idEvento, indirizzo, true/false)`. Solo l'organizzatore può gestire questo elenco. Gli addetti possono convalidare i biglietti soltanto tra l'orario di inizio e quello di fine dell'evento; ogni biglietto può essere convalidato una sola volta. L'organizzatore può continuare a convalidare direttamente.
 
 ## Limite temporaneo per gli acquisti
 
@@ -38,7 +42,7 @@ La rivendita è consentita esclusivamente al prezzo originariamente pagato per q
 
 ## Fondi, annullamenti e rimborsi
 
-I ricavi delle vendite iniziali e le relative commissioni restano accantonati fino all'inizio dell'evento. L'organizzatore può sbloccare i ricavi con `prelevaRicaviEvento(idEvento)) soltanto dall'orario di inizio in poi. Le commissioni iniziali diventano prelevabili nello stesso momento.
+I ricavi delle vendite iniziali e le relative commissioni restano accantonati fino all'inizio dell'evento. L'organizzatore può sbloccare i ricavi con `prelevaRicaviEvento(idEvento)` soltanto dall'orario di inizio in poi. Le commissioni iniziali diventano prelevabili nello stesso momento.
 
 L'organizzatore può annullare l'evento soltanto prima dell'orario di inizio. In caso di annullamento, il proprietario attuale di ciascun biglietto può chiamare `richiediRimborso(idBiglietto)`: riceve il prezzo originario in ETH e il biglietto NFT viene distrutto. Ogni biglietto può essere rimborsato una sola volta. Se il biglietto è custodito dal mercato in una rivendita, il venditore deve prima annullare l'annuncio per riottenere il biglietto.
 
