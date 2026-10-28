@@ -7,6 +7,12 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {TicketOnChain} from "./TicketOnChain.sol";
 
+/// @notice Interfaccia del registro cross-chain Proof of Humanity v2.
+interface IRegistroProofOfHumanity {
+    function isHuman(address account) external view returns (bool);
+    function humanityOf(address account) external view returns (bytes20);
+}
+
 /**
  * @title MercatoTicket
  * @notice Gestisce la creazione degli eventi, la vendita iniziale e la rivendita
@@ -22,6 +28,17 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
 
     /// @notice Contratto NFT utilizzato per creare e trasferire i biglietti.
     TicketOnChain public immutable contrattoBiglietti;
+
+    /// @notice Registro Proof of Humanity usato per verificare gli acquirenti.
+    IRegistroProofOfHumanity public verificatoreUmanita;
+
+    /// @notice Numero massimo di biglietti acquistabili da una persona per evento.
+    uint256 public constant LIMITE_BIGLIETTI_PER_PERSONA = 6;
+
+    /// @notice Conteggio cumulativo degli acquisti per identificativo umano e evento.
+    /// @dev Il conteggio non diminuisce quando un biglietto viene rivenduto.
+    mapping(uint256 idEvento => mapping(bytes20 idUmanita => uint256 quantita))
+        public bigliettiAcquistatiPerPersona;
 
     /// @notice Commissione applicata alle vendite, espressa in punti base.
     /// @dev 100 punti base corrispondono all'1%; 1.000 corrispondono al 10%.
@@ -99,6 +116,13 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     event SaldoPrelevato(address indexed beneficiario, uint256 importo);
     event CommissioniPrelevate(address indexed destinatario, uint256 importo);
     event CommissioneAggiornata(uint256 vecchiaCommissione, uint256 nuovaCommissione);
+    event VerificatoreUmanitaImpostato(address indexed indirizzoVerificatore);
+    event AcquistoPersonaRegistrato(
+        uint256 indexed idEvento,
+        bytes20 indexed idUmanita,
+        address indexed acquirente,
+        uint256 quantitaTotale
+    );
     event IngressoValidato(uint256 indexed idEvento, uint256 indexed idBiglietto, address indexed validatore);
 
     /**
@@ -125,6 +149,26 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
             "MercatoTicket: indirizzo NFT non valido"
         );
         contrattoBiglietti = TicketOnChain(indirizzoContrattoBiglietti);
+    }
+
+    /**
+     * @notice Configura il registro ufficiale Proof of Humanity v2.
+     * @dev Può essere configurato una sola volta. Le vendite sono bloccate finché
+     *      il registro non è configurato: scegliere l'indirizzo Cross-Chain PoH v2
+     *      corretto per la rete su cui verrà pubblicato il mercato.
+     */
+    function impostaVerificatoreUmanita(address indirizzoVerificatore) external onlyOwner {
+        require(
+            address(verificatoreUmanita) == address(0),
+            "MercatoTicket: verificatore gia impostato"
+        );
+        require(
+            indirizzoVerificatore != address(0),
+            "MercatoTicket: verificatore non valido"
+        );
+
+        verificatoreUmanita = IRegistroProofOfHumanity(indirizzoVerificatore);
+        emit VerificatoreUmanitaImpostato(indirizzoVerificatore);
     }
 
     /**
@@ -227,6 +271,8 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
         );
         require(msg.value == evento.prezzo, "MercatoTicket: importo non corretto");
 
+        _verificaERegistraAcquisto(idEvento, msg.sender);
+
         uint256 idBiglietto = prossimoIdBiglietto;
         prossimoIdBiglietto += 1;
         evento.bigliettiVenduti += 1;
@@ -303,6 +349,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
         require(!eventi[eventoDelBiglietto[idBiglietto]].annullato, "MercatoTicket: evento annullato");
         require(msg.sender != annuncio.venditore, "MercatoTicket: non puoi acquistare il tuo biglietto");
         require(msg.value == annuncio.prezzo, "MercatoTicket: importo non corretto");
+        _verificaERegistraAcquisto(eventoDelBiglietto[idBiglietto], msg.sender);
         require(
             contrattoBiglietti.ownerOf(idBiglietto) == address(this),
             "MercatoTicket: biglietto non custodito dal mercato"
@@ -349,6 +396,43 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
 
         ingressiUtilizzati[idBiglietto] = true;
         emit IngressoValidato(idEvento, idBiglietto, msg.sender);
+    }
+
+    /**
+     * @dev Verifica che il wallet sia una persona attiva nel registro PoH v2
+     *      e registra l'acquisto nel limite cumulativo per persona ed evento.
+     */
+    function _verificaERegistraAcquisto(
+        uint256 idEvento,
+        address acquirente
+    ) internal returns (bytes20 idUmanita) {
+        IRegistroProofOfHumanity verificatore = verificatoreUmanita;
+        require(
+            address(verificatore) != address(0),
+            "MercatoTicket: verificatore umanita non configurato"
+        );
+        require(
+            verificatore.isHuman(acquirente),
+            "MercatoTicket: persona non verificata"
+        );
+
+        idUmanita = verificatore.humanityOf(acquirente);
+        require(idUmanita != bytes20(0), "MercatoTicket: identita umana non valida");
+
+        uint256 quantitaAggiornata =
+            bigliettiAcquistatiPerPersona[idEvento][idUmanita] + 1;
+        require(
+            quantitaAggiornata <= LIMITE_BIGLIETTI_PER_PERSONA,
+            "MercatoTicket: limite di 6 biglietti superato"
+        );
+
+        bigliettiAcquistatiPerPersona[idEvento][idUmanita] = quantitaAggiornata;
+        emit AcquistoPersonaRegistrato(
+            idEvento,
+            idUmanita,
+            acquirente,
+            quantitaAggiornata
+        );
     }
 
     /**
