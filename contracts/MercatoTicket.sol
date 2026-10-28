@@ -64,6 +64,9 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     /// @notice Annunci di rivendita indicizzati per identificativo del biglietto.
     mapping(uint256 idBiglietto => AnnuncioRivendita annuncio) public rivendite;
 
+    /// @notice Indica se un biglietto è già stato utilizzato per entrare all'evento.
+    mapping(uint256 idBiglietto => bool utilizzato) public ingressiUtilizzati;
+
     event EventoCreato(
         uint256 indexed idEvento,
         address indexed organizzatore,
@@ -94,6 +97,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     event SaldoPrelevato(address indexed beneficiario, uint256 importo);
     event CommissioniPrelevate(address indexed destinatario, uint256 importo);
     event CommissioneAggiornata(uint256 vecchiaCommissione, uint256 nuovaCommissione);
+    event IngressoValidato(uint256 indexed idEvento, uint256 indexed idBiglietto, address indexed validatore);
 
     /**
      * @notice Conferma la ricezione dei biglietti trasferiti in custodia al mercato.
@@ -237,6 +241,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
             "MercatoTicket: non sei proprietario"
         );
         require(prezzoRichiesto > 0, "MercatoTicket: prezzo non valido");
+        require(!ingressiUtilizzati[idBiglietto], "MercatoTicket: biglietto gia utilizzato");
         require(!rivendite[idBiglietto].attivo, "MercatoTicket: annuncio gia attivo");
 
         // Il trasferimento fallisce se il proprietario non ha autorizzato il mercato.
@@ -294,6 +299,31 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
             msg.value,
             commissione
         );
+    }
+
+    /**
+     * @notice Registra l'ingresso di un biglietto all'evento.
+     * @dev In questa prima versione soltanto l'organizzatore dell'evento può
+     *      convalidare l'ingresso. Un biglietto in custodia per la rivendita non
+     *      può essere convalidato e un biglietto già usato non può entrare di nuovo.
+     */
+    function validaIngresso(uint256 idBiglietto) external {
+        uint256 idEvento = eventoDelBiglietto[idBiglietto];
+        require(idEvento != 0, "MercatoTicket: biglietto non riconosciuto");
+
+        Evento storage evento = eventi[idEvento];
+        require(
+            evento.organizzatore == msg.sender,
+            "MercatoTicket: solo organizzatore"
+        );
+        require(!ingressiUtilizzati[idBiglietto], "MercatoTicket: ingresso gia utilizzato");
+        require(
+            contrattoBiglietti.ownerOf(idBiglietto) != address(this),
+            "MercatoTicket: biglietto in rivendita"
+        );
+
+        ingressiUtilizzati[idBiglietto] = true;
+        emit IngressoValidato(idEvento, idBiglietto, msg.sender);
     }
 
     /**
