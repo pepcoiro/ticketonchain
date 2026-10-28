@@ -21,23 +21,9 @@ L'organizzatore può annullare definitivamente un evento tramite `annullaEvento(
 
 I nomi delle funzioni e i commenti del progetto sono in italiano per rendere il codice più comprensibile durante lo sviluppo.
 
-## Configurazione locale
+## Sviluppo
 
-Il progetto usa Foundry e OpenZeppelin Contracts 5.
-
-1. Installa [Foundry](https://book.getfoundry.sh/getting-started/installation).
-2. Dalla cartella del progetto, installa le dipendenze:
-
-```bash
-forge install OpenZeppelin/openzeppelin-contracts@v5.0.2 --no-commit
-forge install foundry-rs/forge-std --no-commit
-```
-
-3. Esegui i test:
-
-```bash
-forge test -vv
-```
+In questa fase il progetto è dedicato all'implementazione dei contratti. Le verifiche automatiche e i test verranno reintrodotti in una fase successiva.
 
 ## Ordine di pubblicazione su una rete di prova
 
@@ -46,7 +32,7 @@ forge test -vv
 3. Dal proprietario di `TicketOnChain`, esegui `impostaMercato(indirizzoMercato)`.
 4. Crea un evento e prova acquisto, approvazione, rivendita e prelievo.
 
-**Attenzione:** l'indirizzo del mercato può essere impostato una sola volta. Controlla l'indirizzo prima di confermare la transazione. Non usare fondi reali finché compilazione, test e revisione di sicurezza non sono completati.
+**Attenzione:** l'indirizzo del mercato può essere impostato una sola volta. Controlla l'indirizzo prima di confermare la transazione.
 
 ## Metadati
 
@@ -54,4 +40,4 @@ Per un evento con URI base `ipfs://CID/`, il mercato associa al biglietto con id
 
 ## Stato
 
-Prototipo in sviluppo. I test sono stati aggiunti al repository, ma devono essere eseguiti in un ambiente con Foundry e le dipendenze installate prima di considerare il codice verificato.
+Prototipo in sviluppo. In questa fase si stanno implementando le funzionalità dei contratti; test e verifiche saranno affrontati successivamente.
