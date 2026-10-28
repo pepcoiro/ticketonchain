@@ -278,11 +278,13 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
             idBiglietto.toString(),
             ".json"
         );
-        contrattoBiglietti.creaBiglietto(msg.sender, idBiglietto, uriBiglietto);
-
+        // Aggiorna prima lo stato e i saldi, prima della chiamata esterna al contratto NFT.
         uint256 commissione = (msg.value * commissionePuntiBase) / 10_000;
         saldiPrelevabili[evento.organizzatore] += msg.value - commissione;
         commissioniAccumulate += commissione;
+
+        // Se la creazione dell'NFT fallisce, l'intera transazione viene annullata.
+        contrattoBiglietti.creaBiglietto(msg.sender, idBiglietto, uriBiglietto);
 
         emit BigliettoAcquistato(idEvento, idBiglietto, msg.sender, msg.value);
     }
@@ -303,7 +305,9 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
             contrattoBiglietti.ownerOf(idBiglietto) == msg.sender,
             "MercatoTicket: non sei proprietario"
         );
-        require(!eventi[eventoDelBiglietto[idBiglietto]].annullato, "MercatoTicket: evento annullato");
+        Evento storage evento = eventi[eventoDelBiglietto[idBiglietto]];
+        require(!evento.annullato, "MercatoTicket: evento annullato");
+        require(evento.attivo, "MercatoTicket: vendite sospese");
         require(prezzoRichiesto > 0, "MercatoTicket: prezzo non valido");
         require(
             prezzoRichiesto == prezzoAcquistoOriginale[idBiglietto],
@@ -345,7 +349,9 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     function acquistaRivendita(uint256 idBiglietto) external payable nonReentrant {
         AnnuncioRivendita memory annuncio = rivendite[idBiglietto];
         require(annuncio.attivo, "MercatoTicket: annuncio non attivo");
-        require(!eventi[eventoDelBiglietto[idBiglietto]].annullato, "MercatoTicket: evento annullato");
+        Evento storage evento = eventi[eventoDelBiglietto[idBiglietto]];
+        require(!evento.annullato, "MercatoTicket: evento annullato");
+        require(evento.attivo, "MercatoTicket: vendite sospese");
         require(msg.sender != annuncio.venditore, "MercatoTicket: non puoi acquistare il tuo biglietto");
         require(msg.value == annuncio.prezzo, "MercatoTicket: importo non corretto");
         _registraAcquistoWallet(eventoDelBiglietto[idBiglietto], msg.sender);
