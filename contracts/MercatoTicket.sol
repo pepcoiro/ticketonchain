@@ -64,12 +64,17 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
     /// @notice Indica se il biglietto è già stato rimborsato.
     mapping(uint256 idBiglietto => bool rimborsato) public bigliettiRimborsati;
 
+    /// @notice Politica economica scelta dall'organizzatore alla creazione dell'evento.
+    /// FondiBloccati: incassi custoditi fino all'inizio; IncassiAnticipati: prelievo immediato.
+    enum PoliticaRimborso { FondiBloccati, IncassiAnticipati }
+
     struct Evento {
         address organizzatore;
         string nome;
         string uriMetadatiBase;
         uint256 timestampInizio;
         uint256 timestampFine;
+        PoliticaRimborso politicaRimborso;
         uint256 prezzo;
         uint256 quantitaMassima;
         uint256 bigliettiVenduti;
@@ -108,7 +113,8 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         uint256 prezzo,
         uint256 quantitaMassima,
         uint256 timestampInizio,
-        uint256 timestampFine
+        uint256 timestampFine,
+        PoliticaRimborso politicaRimborso
     );
     event EventoAggiornato(uint256 indexed idEvento, bool attivo, uint256 prezzo);
     event EventoAnnullato(uint256 indexed idEvento, address indexed organizzatore);
@@ -207,6 +213,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
      * @param quantitaMassima Numero totale di biglietti emettibili per l'evento.
      * @param timestampInizio Data e ora di inizio dell'evento come timestamp Unix in secondi.
      * @param timestampFine Data e ora di fine dell'evento come timestamp Unix in secondi.
+     * @param politicaRimborso FondiBloccati oppure IncassiAnticipati, scelta dall'organizzatore.
      */
     function creaEvento(
         string calldata nomeEvento,
@@ -214,7 +221,8 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         uint256 prezzoBiglietto,
         uint256 quantitaMassima,
         uint256 timestampInizio,
-        uint256 timestampFine
+        uint256 timestampFine,
+        PoliticaRimborso politicaRimborso
     ) external whenNotPaused returns (uint256 idEvento) {
         require(
             organizzatoriAutorizzati[msg.sender],
@@ -236,6 +244,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
             uriMetadatiBase: uriMetadatiBase,
             timestampInizio: timestampInizio,
             timestampFine: timestampFine,
+            politicaRimborso: politicaRimborso,
             prezzo: prezzoBiglietto,
             quantitaMassima: quantitaMassima,
             bigliettiVenduti: 0,
@@ -250,7 +259,8 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
             prezzoBiglietto,
             quantitaMassima,
             timestampInizio,
-            timestampFine
+            timestampFine,
+            politicaRimborso
         );
     }
 
@@ -282,8 +292,8 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
     /**
      * @notice Annulla definitivamente un evento.
      * @dev L'annullamento blocca vendite, rivendite e convalida ingressi.
-     *      Non esegue rimborsi automatici: la gestione dei rimborsi resta a carico
-     *      dell'organizzatore, secondo le condizioni applicabili.
+     *      Con FondiBloccati i possessori possono richiedere il rimborso dai fondi
+     *      custoditi. Con IncassiAnticipati il contratto non garantisce rimborsi on-chain.
      */
     function annullaEvento(uint256 idEvento) external {
         Evento storage evento = eventi[idEvento];
@@ -294,7 +304,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         evento.annullato = true;
         evento.attivo = false;
 
-        // I ricavi e le commissioni iniziali restano accantonati per consentire i rimborsi.
+        // In modalità FondiBloccati, gli incassi restano nel contratto per i rimborsi.
         emit EventoAnnullato(idEvento, msg.sender);
     }
 
@@ -332,9 +342,16 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         );
         // Aggiorna prima lo stato e i saldi, prima della chiamata esterna al contratto NFT.
         uint256 commissione = (msg.value * commissionePuntiBase) / 10_000;
-        ricaviEventoBloccati[idEvento] += msg.value - commissione;
-        commissioniEventoBloccate[idEvento] += commissione;
-        fondiRimborsoEvento[idEvento] += msg.value;
+        if (evento.politicaRimborso == PoliticaRimborso.FondiBloccati) {
+            ricaviEventoBloccati[idEvento] += msg.value - commissione;
+            commissioniEventoBloccate[idEvento] += commissione;
+            fondiRimborsoEvento[idEvento] += msg.value;
+        } else {
+            // In modalità IncassiAnticipati, i fondi diventano subito prelevabili
+            // dall'organizzatore e le commissioni dalla piattaforma.
+            saldiPrelevabili[evento.organizzatore] += msg.value - commissione;
+            commissioniAccumulate += commissione;
+        }
 
         // Se la creazione dell'NFT fallisce, l'intera transazione viene annullata.
         contrattoBiglietti.creaBiglietto(msg.sender, idBiglietto, uriBiglietto);
@@ -508,6 +525,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
         require(!evento.annullato, "MercatoTicket: evento annullato");
         require(block.timestamp >= evento.timestampInizio, "MercatoTicket: evento non iniziato");
+        require(evento.politicaRimborso == PoliticaRimborso.FondiBloccati, "MercatoTicket: incassi gia disponibili all'organizzatore");
 
         uint256 importo = ricaviEventoBloccati[idEvento];
         require(importo > 0, "MercatoTicket: nessun ricavo da prelevare");
@@ -525,6 +543,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         require(idEvento != 0, "MercatoTicket: biglietto non riconosciuto");
         Evento storage evento = eventi[idEvento];
         require(evento.annullato, "MercatoTicket: evento non annullato");
+        require(evento.politicaRimborso == PoliticaRimborso.FondiBloccati, "MercatoTicket: rimborso on-chain non previsto dalla politica scelta");
         require(!bigliettiRimborsati[idBiglietto], "MercatoTicket: biglietto gia rimborsato");
         require(
             contrattoBiglietti.ownerOf(idBiglietto) == msg.sender,
