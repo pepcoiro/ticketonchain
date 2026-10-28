@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {TicketOnChain} from "./TicketOnChain.sol";
@@ -17,7 +18,7 @@ import {TicketOnChain} from "./TicketOnChain.sol";
  *      Questo è un primo contratto applicativo: va compilato e testato prima
  *      di essere utilizzato su una rete reale.
  */
-contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
+contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
     using Strings for uint256;
 
     /// @notice Contratto NFT utilizzato per creare e trasferire i biglietti.
@@ -151,6 +152,21 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     /**
+     * @notice Sospende temporaneamente le operazioni di vendita in caso di emergenza.
+     * @dev Non blocca prelievi, convalida ingressi o annullamento degli annunci.
+     */
+    function sospendiMercato() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @notice Riattiva le operazioni di vendita dopo la risoluzione del problema.
+     */
+    function riattivaMercato() external onlyOwner {
+        _unpause();
+    }
+
+    /**
      * @notice Autorizza o revoca un organizzatore.
      * @dev Solo il proprietario del mercato può gestire l'elenco degli organizzatori.
      */
@@ -173,7 +189,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
         string calldata uriMetadatiBase,
         uint256 prezzoBiglietto,
         uint256 quantitaMassima
-    ) external returns (uint256 idEvento) {
+    ) external whenNotPaused returns (uint256 idEvento) {
         require(
             organizzatoriAutorizzati[msg.sender],
             "MercatoTicket: organizzatore non autorizzato"
@@ -253,7 +269,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
      *      dall'organizzatore. Il pagamento non viene inviato direttamente durante
      *      l'acquisto, riducendo il rischio di chiamate esterne non necessarie.
      */
-    function acquistaBiglietto(uint256 idEvento) external payable nonReentrant {
+    function acquistaBiglietto(uint256 idEvento) external payable whenNotPaused nonReentrant {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore != address(0), "MercatoTicket: evento inesistente");
         require(!evento.annullato, "MercatoTicket: evento annullato");
@@ -299,7 +315,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
     function mettiInRivendita(
         uint256 idBiglietto,
         uint256 prezzoRichiesto
-    ) external nonReentrant {
+    ) external whenNotPaused nonReentrant {
         require(eventoDelBiglietto[idBiglietto] != 0, "MercatoTicket: biglietto non riconosciuto");
         require(
             contrattoBiglietti.ownerOf(idBiglietto) == msg.sender,
@@ -346,7 +362,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, IERC721Receiver {
      * @notice Acquista un biglietto custodito dal mercato per una rivendita.
      * @dev Il venditore riceve un saldo prelevabile al netto della commissione.
      */
-    function acquistaRivendita(uint256 idBiglietto) external payable nonReentrant {
+    function acquistaRivendita(uint256 idBiglietto) external payable whenNotPaused nonReentrant {
         AnnuncioRivendita memory annuncio = rivendite[idBiglietto];
         require(annuncio.attivo, "MercatoTicket: annuncio non attivo");
         Evento storage evento = eventi[eventoDelBiglietto[idBiglietto]];
