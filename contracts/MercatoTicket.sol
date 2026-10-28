@@ -277,6 +277,7 @@ contract MercatoTicket is Ownable, ReentrancyGuard, Pausable, IERC721Receiver {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
         require(!evento.annullato, "MercatoTicket: evento gia annullato");
+        require(block.timestamp < evento.timestampInizio, "MercatoTicket: evento gia iniziato");
 
         evento.annullato = true;
         evento.attivo = false;
