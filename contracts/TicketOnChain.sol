@@ -100,6 +100,14 @@ contract TicketOnChain is ERC721, Ownable {
     }
 
     /**
+     * @notice Distrugge un biglietto durante un rimborso autorizzato dal mercato.
+     */
+    function distruggiBiglietto(uint256 identificativoBiglietto) external soloMercato {
+        _burn(identificativoBiglietto);
+        delete _indirizziMetadati[identificativoBiglietto];
+    }
+
+    /**
      * @notice Restituisce l'URI dei metadati associati a un biglietto.
      * @param identificativoBiglietto Numero del biglietto da consultare.
      */
