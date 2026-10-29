@@ -221,4 +221,103 @@ contract MercatoTicketRimborsiTest is Test {
         vm.expectRevert("MercatoTicket: non puoi acquistare il tuo biglietto");
         mercato.acquistaRivendita{value: 1 ether}(1);
     }
+
+    function testAnnullareAnnuncioRestituisceNFTAlVenditore() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        vm.prank(alice);
+        nft.approve(address(mercato), 1);
+        vm.prank(alice);
+        mercato.mettiInRivendita(1, 1 ether);
+        vm.prank(bob);
+        vm.expectRevert("MercatoTicket: non sei venditore");
+        mercato.annullaRivendita(1);
+        vm.prank(alice);
+        mercato.annullaRivendita(1);
+        assertEq(nft.ownerOf(1), alice);
+        (,,bool attivo) = mercato.rivendite(1);
+        assertFalse(attivo);
+    }
+
+    function testDisabilitareRivenditaBloccaNuoviAnnunci() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.impostaRivendita(idEvento, false);
+        vm.prank(alice);
+        nft.approve(address(mercato), 1);
+        vm.prank(alice);
+        vm.expectRevert("MercatoTicket: rivendita sospesa");
+        mercato.mettiInRivendita(1, 1 ether);
+    }
+
+    function testPrelievoFondiBloccatiSoloDopoInizioEvento() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        vm.expectRevert("MercatoTicket: evento non iniziato");
+        mercato.prelevaRicaviEvento(idEvento);
+        vm.warp(block.timestamp + 1 days);
+        mercato.prelevaRicaviEvento(idEvento);
+        assertEq(mercato.saldiPrelevabili(address(this)), 0.975 ether);
+        assertEq(mercato.commissioniAccumulate(), 0.025 ether);
+    }
+
+    function testIncassiAnticipatiNonRimborsaAutomaticamente() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 2);
+        uint256 saldoAlice = alice.balance;
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.annullaEvento(idEvento);
+        assertEq(alice.balance, saldoAlice - 1 ether);
+        assertFalse(mercato.bigliettiRimborsati(1));
+        vm.expectRevert("MercatoTicket: versare l'intero importo delle vendite");
+        mercato.avviaRimborsiCollettivi{value: 0.5 ether}(idEvento);
+        assertFalse(mercato.rimborsiCollettiviAvviati(idEvento));
+    }
+
+    function testIncassiAnticipatiDopoRivenditaRimborsaPossessoreAttuale() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
+        uint256 saldoBob = bob.balance;
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        vm.prank(alice);
+        nft.approve(address(mercato), 1);
+        vm.prank(alice);
+        mercato.mettiInRivendita(1, 1 ether);
+        vm.prank(bob);
+        mercato.acquistaRivendita{value: 1 ether}(1);
+        mercato.annullaEvento(idEvento);
+        assertFalse(mercato.bigliettiRimborsati(1));
+        assertEq(nft.ownerOf(1), bob);
+        mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
+        assertEq(bob.balance, saldoBob);
+        assertTrue(mercato.bigliettiRimborsati(1));
+        assertEq(mercato.saldiPrelevabili(alice), 0.975 ether);
+    }
+
+    function testRimborsoNonPuoEssereAvviatoDueVolte() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.annullaEvento(idEvento);
+        mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
+        vm.expectRevert("MercatoTicket: rimborsi gia avviati");
+        mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
+    }
+
+    function testProcessaRimborsiRichiedeAvvioELottoValido() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
+        vm.expectRevert("MercatoTicket: rimborsi non avviati");
+        mercato.processaRimborsiEvento(idEvento, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.annullaEvento(idEvento);
+        mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
+        vm.expectRevert("MercatoTicket: dimensione lotto non valida");
+        mercato.processaRimborsiEvento(idEvento, 0);
+        vm.expectRevert("MercatoTicket: dimensione lotto non valida");
+        mercato.processaRimborsiEvento(idEvento, 21);
+    }
 }
