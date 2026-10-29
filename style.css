@@ -57,14 +57,14 @@ body {
   min-height: 56px;
   align-items: center;
   padding: 0 18px;
-  border: 1px solid #40333f;
+  border: 1px solid var(--ciano);
   border-radius: 10px;
   background: #0d0d0d;
   transition: border-color 160ms ease;
 }
 
 .barra-ricerca:focus-within {
-  border-color: var(--magenta);
+  border-color: var(--ciano);
 }
 
 .barra-ricerca input {
@@ -80,7 +80,7 @@ body {
 }
 
 .barra-ricerca input::placeholder {
-  color: #a39aa3;
+  color: var(--bianco);
   opacity: 1;
 }
 
