@@ -100,4 +100,61 @@ contract MercatoTicketRimborsiTest is Test {
             assertTrue(mercato.bigliettiRimborsati(i));
         }
     }
+
+    function testAnnullamentoConBigliettoInRivenditaRimborsaIlVenditoreEBruciaNFT() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        uint256 saldoPrima = alice.balance;
+
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+
+        vm.prank(alice);
+        nft.approve(address(mercato), 1);
+
+        vm.prank(alice);
+        mercato.mettiInRivendita(1, 1 ether);
+
+        mercato.annullaEvento(idEvento);
+
+        assertEq(alice.balance, saldoPrima);
+        assertTrue(mercato.bigliettiRimborsati(1));
+        (address venditore, uint256 prezzoRivendita, bool annuncioAttivo) = mercato.rivendite(1);
+        assertEq(venditore, address(0));
+        assertEq(prezzoRivendita, 0);
+        assertFalse(annuncioAttivo);
+        vm.expectRevert();
+        nft.ownerOf(1);
+    }
+
+    function testRivenditaEAnnullamentoRimborsanoIlPossessoreAttuale() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        uint256 saldoAlicePrima = alice.balance;
+        uint256 saldoBobPrima = bob.balance;
+
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+
+        vm.prank(alice);
+        nft.approve(address(mercato), 1);
+
+        vm.prank(alice);
+        mercato.mettiInRivendita(1, 1 ether);
+
+        vm.prank(bob);
+        mercato.acquistaRivendita{value: 1 ether}(1);
+
+        assertEq(nft.ownerOf(1), bob);
+        assertEq(mercato.saldiPrelevabili(alice), 0.975 ether);
+
+        mercato.annullaEvento(idEvento);
+
+        assertEq(bob.balance, saldoBobPrima);
+        assertEq(alice.balance, saldoAlicePrima - 1 ether);
+        assertTrue(mercato.bigliettiRimborsati(1));
+        assertEq(mercato.ricaviEventoBloccati(idEvento), 0);
+        assertEq(mercato.commissioniEventoBloccate(idEvento), 0);
+        assertEq(mercato.commissioniAccumulate(), 0.025 ether);
+        vm.expectRevert();
+        nft.ownerOf(1);
+    }
 }
