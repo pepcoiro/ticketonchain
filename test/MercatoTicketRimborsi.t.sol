@@ -157,4 +157,68 @@ contract MercatoTicketRimborsiTest is Test {
         vm.expectRevert();
         nft.ownerOf(1);
     }
+
+    function testAcquistoRifiutaImportoErrato() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        vm.expectRevert("MercatoTicket: importo non corretto");
+        mercato.acquistaBiglietto{value: 0.5 ether}(idEvento);
+        assertEq(mercato.eventi(idEvento).bigliettiVenduti, 0);
+    }
+
+    function testAcquistoRifiutaEventoInesistente() public {
+        vm.prank(alice);
+        vm.expectRevert("MercatoTicket: evento inesistente");
+        mercato.acquistaBiglietto{value: 1 ether}(999);
+    }
+
+    function testLimiteWalletSeiBigliettiApplicatoAgliAcquistiIniziali() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 7);
+        for (uint256 i = 0; i < 6; i++) {
+            vm.prank(alice);
+            mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        }
+        vm.prank(alice);
+        vm.expectRevert("MercatoTicket: limite di 6 biglietti per wallet superato");
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        (,,,,,,uint256 venduti,,,) = mercato.eventi(idEvento);
+        assertEq(venduti, 6);
+    }
+
+    function testSoloOrganizzatorePuoAggiornareEAnnullareEvento() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 2);
+        vm.prank(alice);
+        vm.expectRevert("MercatoTicket: non sei organizzatore");
+        mercato.aggiornaEvento(idEvento, 2 ether, false);
+        vm.prank(alice);
+        vm.expectRevert("MercatoTicket: non sei organizzatore");
+        mercato.annullaEvento(idEvento);
+    }
+
+    function testRivenditaRichiedeAutorizzazioneEPrezzoOriginale() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        vm.prank(alice);
+        vm.expectRevert();
+        mercato.mettiInRivendita(1, 1 ether);
+        vm.prank(alice);
+        nft.approve(address(mercato), 1);
+        vm.prank(alice);
+        vm.expectRevert("MercatoTicket: rivendita solo al prezzo originale");
+        mercato.mettiInRivendita(1, 2 ether);
+    }
+
+    function testRivenditaRifiutaAcquistoDaParteDelVenditore() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        vm.prank(alice);
+        nft.approve(address(mercato), 1);
+        vm.prank(alice);
+        mercato.mettiInRivendita(1, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert("MercatoTicket: non puoi acquistare il tuo biglietto");
+        mercato.acquistaRivendita{value: 1 ether}(1);
+    }
 }
