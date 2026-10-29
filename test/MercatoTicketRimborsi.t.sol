@@ -6,6 +6,10 @@ import {MercatoTicket} from "../contracts/MercatoTicket.sol";
 import {TicketOnChain} from "../contracts/TicketOnChain.sol";
 
 contract PortafoglioCheRifiutaETH {
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+        return 0x150b7a02;
+    }
+
     function compra(MercatoTicket mercato, uint256 idEvento) external payable {
         mercato.acquistaBiglietto{value: msg.value}(idEvento);
     }
@@ -191,7 +195,7 @@ contract MercatoTicketRimborsiTest is Test {
         vm.prank(alice);
         vm.expectRevert("MercatoTicket: limite di 6 biglietti per wallet superato");
         mercato.acquistaBiglietto{value: 1 ether}(idEvento);
-        (,,,,,,uint256 venduti,,,) = mercato.eventi(idEvento);
+        (,,,,,,,,uint256 venduti,,) = mercato.eventi(idEvento);
         assertEq(venduti, 6);
     }
 
