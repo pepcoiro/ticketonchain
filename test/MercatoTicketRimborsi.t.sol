@@ -57,7 +57,7 @@ contract MercatoTicketRimborsiTest is Test {
         uint256 saldoPrima = alice.balance;
 
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
 
         mercato.annullaEvento(idEvento);
 
@@ -76,7 +76,7 @@ contract MercatoTicketRimborsiTest is Test {
         uint256 saldoPrima = alice.balance;
 
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
 
         // Simula l'organizzatore che preleva gli incassi prima dell'annullamento.
         mercato.prelevaSaldo();
@@ -103,7 +103,7 @@ contract MercatoTicketRimborsiTest is Test {
             acquirenti[i] = acquirente;
             vm.deal(acquirente, 2 ether);
             vm.prank(acquirente);
-            mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+            mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         }
 
         mercato.annullaEvento(idEvento);
@@ -125,7 +125,7 @@ contract MercatoTicketRimborsiTest is Test {
         uint256 saldoPrima = alice.balance;
 
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
 
         vm.prank(alice);
         nft.approve(address(mercato), 1);
@@ -152,7 +152,7 @@ contract MercatoTicketRimborsiTest is Test {
         uint256 saldoBobPrima = bob.balance;
 
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
 
         vm.prank(alice);
         nft.approve(address(mercato), 1);
@@ -161,10 +161,10 @@ contract MercatoTicketRimborsiTest is Test {
         mercato.mettiInRivendita(1, 1 ether);
 
         vm.prank(bob);
-        mercato.acquistaRivendita{value: 1 ether}(1);
+        mercato.acquistaRivendita{value: 1.015 ether}(1);
 
         assertEq(nft.ownerOf(1), bob);
-        assertEq(mercato.saldiPrelevabili(alice), 0.975 ether);
+        assertEq(mercato.saldiPrelevabili(alice), 1 ether);
 
         mercato.annullaEvento(idEvento);
 
@@ -174,7 +174,7 @@ contract MercatoTicketRimborsiTest is Test {
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.ricaviEventoBloccati(idEvento), 0);
         assertEq(mercato.commissioniEventoBloccate(idEvento), 0);
-        assertEq(mercato.commissioniAccumulate(), 0.025 ether);
+        assertEq(mercato.commissioniAccumulate(), 0.03 ether);
         vm.expectRevert();
         nft.ownerOf(1);
     }
@@ -191,18 +191,18 @@ contract MercatoTicketRimborsiTest is Test {
     function testAcquistoRifiutaEventoInesistente() public {
         vm.prank(alice);
         vm.expectRevert("MercatoTicket: evento inesistente");
-        mercato.acquistaBiglietto{value: 1 ether}(999);
+        mercato.acquistaBiglietto{value: 1.015 ether}(999);
     }
 
     function testLimiteWalletSeiBigliettiApplicatoAgliAcquistiIniziali() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 7);
         for (uint256 i = 0; i < 6; i++) {
             vm.prank(alice);
-            mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+            mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         }
         vm.prank(alice);
         vm.expectRevert("MercatoTicket: limite di 6 biglietti per wallet superato");
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         (,,,,,,,,uint256 venduti,,) = mercato.eventi(idEvento);
         assertEq(venduti, 6);
     }
@@ -220,7 +220,7 @@ contract MercatoTicketRimborsiTest is Test {
     function testRivenditaRichiedeAutorizzazioneEPrezzoOriginale() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         vm.prank(alice);
         vm.expectRevert();
         mercato.mettiInRivendita(1, 1 ether);
@@ -234,20 +234,20 @@ contract MercatoTicketRimborsiTest is Test {
     function testRivenditaRifiutaAcquistoDaParteDelVenditore() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         vm.prank(alice);
         nft.approve(address(mercato), 1);
         vm.prank(alice);
         mercato.mettiInRivendita(1, 1 ether);
         vm.prank(alice);
         vm.expectRevert("MercatoTicket: non puoi acquistare il tuo biglietto");
-        mercato.acquistaRivendita{value: 1 ether}(1);
+        mercato.acquistaRivendita{value: 1.015 ether}(1);
     }
 
     function testAnnullareAnnuncioRestituisceNFTAlVenditore() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         vm.prank(alice);
         nft.approve(address(mercato), 1);
         vm.prank(alice);
@@ -265,7 +265,7 @@ contract MercatoTicketRimborsiTest is Test {
     function testDisabilitareRivenditaBloccaNuoviAnnunci() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         mercato.impostaRivendita(idEvento, false);
         vm.prank(alice);
         nft.approve(address(mercato), 1);
@@ -277,20 +277,20 @@ contract MercatoTicketRimborsiTest is Test {
     function testPrelievoFondiBloccatiSoloDopoInizioEvento() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         vm.expectRevert("MercatoTicket: evento non iniziato");
         mercato.prelevaRicaviEvento(idEvento);
         vm.warp(block.timestamp + 1 days);
         mercato.prelevaRicaviEvento(idEvento);
-        assertEq(mercato.saldiPrelevabili(address(this)), 0.975 ether);
-        assertEq(mercato.commissioniAccumulate(), 0.025 ether);
+        assertEq(mercato.saldiPrelevabili(address(this)), 1 ether);
+        assertEq(mercato.commissioniAccumulate(), 0.015 ether);
     }
 
     function testIncassiAnticipatiNonRimborsaAutomaticamente() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 2);
         uint256 saldoAlice = alice.balance;
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         mercato.annullaEvento(idEvento);
         assertEq(alice.balance, saldoAlice - 1 ether);
         assertFalse(mercato.bigliettiRimborsati(1));
@@ -303,13 +303,13 @@ contract MercatoTicketRimborsiTest is Test {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
         uint256 saldoBob = bob.balance;
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         vm.prank(alice);
         nft.approve(address(mercato), 1);
         vm.prank(alice);
         mercato.mettiInRivendita(1, 1 ether);
         vm.prank(bob);
-        mercato.acquistaRivendita{value: 1 ether}(1);
+        mercato.acquistaRivendita{value: 1.015 ether}(1);
         mercato.annullaEvento(idEvento);
         assertFalse(mercato.bigliettiRimborsati(1));
         assertEq(nft.ownerOf(1), bob);
@@ -317,13 +317,13 @@ contract MercatoTicketRimborsiTest is Test {
         assertEq(bob.balance, saldoBob - 1 ether);
         assertEq(mercato.saldiPrelevabili(bob), 1 ether);
         assertTrue(mercato.bigliettiRimborsati(1));
-        assertEq(mercato.saldiPrelevabili(alice), 0.975 ether);
+        assertEq(mercato.saldiPrelevabili(alice), 1 ether);
     }
 
     function testRimborsoNonPuoEssereAvviatoDueVolte() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         mercato.annullaEvento(idEvento);
         mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
         vm.expectRevert("MercatoTicket: rimborsi gia avviati");
@@ -335,7 +335,7 @@ contract MercatoTicketRimborsiTest is Test {
         vm.expectRevert("MercatoTicket: rimborsi non avviati");
         mercato.processaRimborsiEvento(idEvento, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         mercato.annullaEvento(idEvento);
         mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
         vm.expectRevert("MercatoTicket: dimensione lotto non valida");
@@ -348,9 +348,9 @@ contract MercatoTicketRimborsiTest is Test {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 2);
         PortafoglioCheRifiutaETH wallet = new PortafoglioCheRifiutaETH();
         vm.deal(address(wallet), 1 ether);
-        wallet.compra{value: 1 ether}(mercato, idEvento);
+        wallet.compra{value: 1.015 ether}(mercato, idEvento);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
 
         mercato.annullaEvento(idEvento);
 
@@ -364,7 +364,7 @@ contract MercatoTicketRimborsiTest is Test {
     function testIngressoSoloNellaFinestraTemporaleEUnaVolta() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         address validatore = address(0xCAFE);
         mercato.impostaValidatoreIngresso(idEvento, validatore, true);
 
@@ -388,7 +388,7 @@ contract MercatoTicketRimborsiTest is Test {
     function testIngressoRifiutatoPerBigliettoInRivendita() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         vm.prank(alice);
         nft.approve(address(mercato), 1);
         vm.prank(alice);
@@ -402,26 +402,26 @@ contract MercatoTicketRimborsiTest is Test {
     function testPausaMercatoBloccaAcquistiMaNonPrelievi() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         mercato.sospendiMercato();
         vm.prank(bob);
         vm.expectRevert();
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         uint256 saldoPrima = address(this).balance;
         mercato.prelevaSaldo();
-        assertEq(address(this).balance, saldoPrima + 0.975 ether);
+        assertEq(address(this).balance, saldoPrima + 1 ether);
     }
 
     function testSoloProprietarioMercatoPuoPrelevareCommissioni() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         vm.prank(bob);
         vm.expectRevert();
         mercato.prelevaCommissioni(bob);
         uint256 saldoPrima = bob.balance;
         mercato.prelevaCommissioni(bob);
-        assertEq(bob.balance, saldoPrima + 0.025 ether);
+        assertEq(bob.balance, saldoPrima + 0.015 ether);
         assertEq(mercato.commissioniAccumulate(), 0);
     }
 
@@ -429,7 +429,7 @@ contract MercatoTicketRimborsiTest is Test {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
         uint256 saldoAlice = alice.balance;
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
 
         vm.warp(block.timestamp + 1 days);
         mercato.annullaEvento(idEvento);
@@ -456,9 +456,9 @@ contract MercatoTicketRimborsiTest is Test {
         vm.deal(alice, prezzo + 1 ether);
         uint256 saldoIniziale = alice.balance;
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: prezzo}(idEvento);
+        mercato.acquistaBiglietto{value: prezzo + (prezzo * mercato.commissionePuntiBase()) / 10_000}(idEvento);
         mercato.annullaEvento(idEvento);
-        assertEq(alice.balance, saldoIniziale - prezzo);
+        assertEq(alice.balance, saldoIniziale - prezzo - (prezzo * mercato.commissionePuntiBase()) / 10_000);
         assertEq(mercato.saldiPrelevabili(alice), prezzo);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
@@ -467,22 +467,22 @@ contract MercatoTicketRimborsiTest is Test {
     function testCambioCommissioneNonModificaContabilitaAcquistoGiaEffettuato() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         mercato.impostaCommissione(1_000);
         mercato.annullaEvento(idEvento);
-        assertEq(mercato.commissioneAcquistoOriginale(1), 0.025 ether);
+        assertEq(mercato.commissioneAcquistoOriginale(1), 0.015 ether);
         assertEq(mercato.ricaviEventoBloccati(idEvento), 0);
         assertEq(mercato.commissioniEventoBloccate(idEvento), 0);
-        assertEq(mercato.commissioniAccumulate(), 0);
+        assertEq(mercato.commissioniAccumulate(), 0.015 ether);
     }
 
     function testEventoEsauritoRifiutaAcquistiSuccessivi() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         vm.prank(bob);
         vm.expectRevert("MercatoTicket: biglietti esauriti");
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
     }
 
     function testOrganizzatoreRevocatoNonPuoCreareEventi() public {
@@ -510,7 +510,7 @@ contract MercatoTicketRimborsiTest is Test {
     function testFondiBloccatiNonPuoEssereAnnullatoDopoInizio() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         vm.warp(block.timestamp + 1 days);
         vm.expectRevert("MercatoTicket: evento gia iniziato");
         mercato.annullaEvento(idEvento);
@@ -526,7 +526,7 @@ contract MercatoTicketRimborsiTest is Test {
     function testSoloValidatoreAutorizzatoPuoConvalidare() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         vm.warp(block.timestamp + 1 days);
         vm.prank(bob);
         vm.expectRevert("MercatoTicket: non sei un validatore autorizzato");
@@ -536,7 +536,7 @@ contract MercatoTicketRimborsiTest is Test {
     function testTrasferimentoNFTDirettoTraUtentiVieneBloccato() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         vm.prank(alice);
         vm.expectRevert("TicketOnChain: trasferimento consentito solo tramite mercato");
         nft.transferFrom(alice, bob, 1);
