@@ -61,12 +61,12 @@ La rivendita è consentita esclusivamente al prezzo originariamente pagato per q
 
 Alla creazione dell'evento, l'organizzatore deve scegliere il parametro `politicaRimborso`:
 
-- `FondiBloccati` (valore enum `0`): gli incassi netti e le commissioni restano nel contratto fino all'inizio dell'evento. L'organizzatore può sbloccare gli incassi con `prelevaRicaviEvento(idEvento)` solo dall'orario di inizio. Se l'evento viene annullato prima dell'inizio, i possessori attuali dei biglietti possono richiedere on-chain il prezzo originario con `richiediRimborso(idBiglietto)`. Il biglietto NFT viene distrutto dopo il rimborso. Se è in custodia per una rivendita, il venditore dell'annuncio può richiedere direttamente il rimborso: l'annuncio viene disattivato e il biglietto distrutto nella stessa transazione.
+- `FondiBloccati` (valore enum `0`): gli incassi netti, le commissioni e la riserva per i rimborsi restano nel contratto fino all'inizio dell'evento. Se l'organizzatore annulla l'evento prima dell'inizio, il contratto avvia automaticamente i rimborsi collettivi: gli acquirenti non devono presentare richieste. Per non superare i limiti di gas, i biglietti vengono elaborati in lotti da massimo 20; l'interfaccia/servizio può proseguire i lotti chiamando `processaRimborsiEvento`. Ogni biglietto rimborsato viene distrutto. Se era in custodia per una rivendita, il rimborso spetta al venditore dell'annuncio.
 - `IncassiAnticipati` (valore enum `1`): il netto della vendita diventa subito prelevabile dall'organizzatore e la commissione diventa subito disponibile alla piattaforma. In questa modalità il contratto non accantona fondi per i rimborsi e `richiediRimborso` non è disponibile. Eventuali rimborsi devono essere gestiti dall'organizzatore al di fuori del rimborso automatico del contratto.
 
 La scelta è registrata nell'evento e non può essere cambiata con le funzioni attuali. Non è previsto un rimborso automatico per semplice ripensamento dell'acquirente. L'interfaccia deve mostrare la politica prima dell'acquisto e mantenere una dicitura coerente:
 
-**FondiBloccati:** «In caso di annullamento, è previsto il rimborso del prezzo del biglietto. Gli incassi sono custoditi nel contratto fino all'inizio dell'evento.»
+**FondiBloccati:** «In caso di annullamento, il contratto avvia automaticamente il rimborso del prezzo del biglietto. Gli incassi sono custoditi nel contratto fino all'inizio dell'evento.»
 
 **IncassiAnticipati:** «L'organizzatore può prelevare gli incassi prima dell'evento. In caso di annullamento, non è prevista una garanzia automatica di rimborso finanziata dalla piattaforma.»
 
@@ -78,7 +78,7 @@ I nomi delle funzioni e i commenti del progetto sono in italiano per rendere il 
 
 ## Sviluppo
 
-Il progetto resta un prototipo. Le modifiche ai contratti devono essere compilate e testate in Foundry prima del deploy. Rimane da definire esplicitamente una politica di scadenza e destinazione per i fondi di rimborso non richiesti dopo l'annullamento: fino a quando questa regola non sarà decisa e implementata, tali fondi possono restare bloccati. Non distribuire su mainnet prima di aver risolto questo punto e verificato i flussi economici con test.
+Il progetto resta un prototipo. Le modifiche ai contratti devono essere compilate e testate in Foundry prima del deploy. I rimborsi non dipendono da richieste individuali: dopo l'annullamento, la procedura collettiva elabora i biglietti a lotti per contenere il consumo di gas. Per gli eventi con IncassiAnticipati, l'organizzatore deve rifinanziare il contratto con l'intero lordo venduto prima di avviare la procedura. Non distribuire su mainnet prima di aver risolto questo punto e verificato i flussi economici con test.
 
 ## Ordine di pubblicazione su una rete di prova
 
