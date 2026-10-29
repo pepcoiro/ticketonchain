@@ -80,7 +80,7 @@ I nomi delle funzioni e i commenti del progetto sono in italiano per rendere il 
 
 Il progetto è un prototipo in verifica. La CI compila i contratti, esegue la suite Foundry (test funzionali, fuzz, test avversariali e invarianti) e analizza il codice con Slither. I rimborsi vengono accreditati come saldi prelevabili, senza inviare ETH direttamente ai wallet durante l'elaborazione del lotto: ogni destinatario deve effettuare una transazione separata per prelevare il saldo. Questo evita callback ostili e griefing tramite consumo di gas durante i rimborsi.
 
-La contabilità della modalità IncassiAnticipati richiede ancora una verifica specifica: se i crediti dell'organizzatore e le commissioni maturate restano prelevabili dopo il finanziamento dei rimborsi, possono coesistere con la passività dei rimborsi. Prima del deploy va definito e verificato come queste passività si coordinano; nessuna regola economica viene modificata da questa nota. I controlli automatici non equivalgono a un audit indipendente.
+La suite di invarianti verifica la copertura contabile delle passività in entrambe le modalità, includendo saldi prelevabili, commissioni accumulate e riserve lorde di rimborso. I ricavi e le commissioni ancora bloccati non vengono sommati una seconda volta, perché sono già coperti dalla riserva lorda. I controlli automatici non equivalgono a un audit indipendente.
 
 ## Ordine di pubblicazione su una rete di prova
 
