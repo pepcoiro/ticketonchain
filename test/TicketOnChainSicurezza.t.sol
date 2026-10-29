@@ -32,6 +32,30 @@ contract TicketOnChainSicurezzaTest is Test {
         mercato.acquistaBiglietto{value: 1 ether}(idEvento);
     }
 
+    function testSoloProprietarioPuoConfigurareMercato() public {
+        TicketOnChain altroNft = new TicketOnChain();
+        vm.prank(alice);
+        vm.expectRevert();
+        altroNft.impostaMercato(address(mercato));
+    }
+
+    function testRinunciaAllaProprietaEImpedita() public {
+        vm.expectRevert("TicketOnChain: rinuncia proprieta disabilitata");
+        nft.renounceOwnership();
+        vm.expectRevert("MercatoTicket: rinuncia proprieta disabilitata");
+        mercato.renounceOwnership();
+    }
+
+    function testIdentificativoBigliettoNonPuoEssereRiutilizzato() public {
+        vm.prank(address(mercato));
+        nft.creaBiglietto(alice, 777, "ipfs://cid/777.json");
+        vm.prank(address(mercato));
+        vm.expectRevert("TicketOnChain: biglietto gia esistente");
+        nft.creaBiglietto(bob, 777, "ipfs://cid/altro.json");
+        assertEq(nft.ownerOf(777), alice);
+        assertEq(nft.tokenURI(777), "ipfs://cid/777.json");
+    }
+
     function testSoloMercatoPuoCreareBiglietti() public {
         vm.expectRevert("TicketOnChain: solo il mercato");
         nft.creaBiglietto(alice, 777, "ipfs://cid/777.json");
