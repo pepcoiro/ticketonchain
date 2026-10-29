@@ -42,21 +42,20 @@ contract MercatoTicketFuzzSicurezzaTest is Test {
             MercatoTicket.PoliticaRimborso.FondiBloccati,
             prezzo
         );
-        vm.deal(alice, prezzo);
+        vm.deal(alice, prezzo + (prezzo * commissione) / 10_000);
         uint256 saldoIniziale = alice.balance;
 
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: prezzo}(idEvento);
+        mercato.acquistaBiglietto{value: prezzo + (prezzo * commissione) / 10_000}(idEvento);
         assertEq(mercato.fondiRimborsoEvento(idEvento), prezzo);
         assertEq(
-            mercato.ricaviEventoBloccati(idEvento) +
-                mercato.commissioniEventoBloccate(idEvento),
+            mercato.ricaviEventoBloccati(idEvento),
             prezzo
         );
 
         mercato.annullaEvento(idEvento);
 
-        assertEq(alice.balance, saldoIniziale - prezzo);
+        assertEq(alice.balance, saldoIniziale - prezzo - (prezzo * commissione) / 10_000);
         assertEq(mercato.saldiPrelevabili(alice), prezzo);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
@@ -75,12 +74,12 @@ contract MercatoTicketFuzzSicurezzaTest is Test {
             MercatoTicket.PoliticaRimborso.IncassiAnticipati,
             prezzo
         );
-        vm.deal(alice, prezzo);
+        vm.deal(alice, prezzo + (prezzo * commissione) / 10_000);
         uint256 saldoIniziale = alice.balance;
 
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: prezzo}(idEvento);
-        assertEq(mercato.saldiPrelevabili(address(this)), prezzo - (prezzo * commissione / 10_000));
+        mercato.acquistaBiglietto{value: prezzo + (prezzo * commissione) / 10_000}(idEvento);
+        assertEq(mercato.saldiPrelevabili(address(this)), prezzo);
         assertEq(mercato.commissioniAccumulate(), prezzo * commissione / 10_000);
 
         mercato.annullaEvento(idEvento);
