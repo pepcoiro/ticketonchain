@@ -47,7 +47,7 @@ contract MercatoTicketReentrancyTest is Test {
     }
 
     function testAvvioRimborsiIncassiAnticipatiBloccaRientranza() public {
-        vm.deal(address(this), 1 ether);
+        vm.deal(address(this), 2 ether);
         uint256 idEvento = mercato.creaEvento(
             "Evento anticipato",
             "ipfs://anticipato/",
