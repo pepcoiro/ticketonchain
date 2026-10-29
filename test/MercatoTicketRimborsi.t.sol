@@ -464,4 +464,70 @@ contract MercatoTicketRimborsiTest is Test {
         assertEq(mercato.commissioniEventoBloccate(idEvento), 0);
         assertEq(mercato.commissioniAccumulate(), 0);
     }
+
+    function testEventoEsauritoRifiutaAcquistiSuccessivi() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        vm.prank(bob);
+        vm.expectRevert("MercatoTicket: biglietti esauriti");
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+    }
+
+    function testOrganizzatoreRevocatoNonPuoCreareEventi() public {
+        mercato.impostaOrganizzatore(alice, false);
+        vm.prank(alice);
+        vm.expectRevert("MercatoTicket: organizzatore non autorizzato");
+        mercato.creaEvento(
+            "Evento",
+            "ipfs://evento/",
+            1 ether,
+            1,
+            block.timestamp + 1 days,
+            block.timestamp + 2 days,
+            MercatoTicket.PoliticaRimborso.FondiBloccati
+        );
+    }
+
+    function testCommissioneNonPuoSuperareDieciPercento() public {
+        mercato.impostaCommissione(1_000);
+        assertEq(mercato.commissionePuntiBase(), 1_000);
+        vm.expectRevert("MercatoTicket: commissione oltre il 10%");
+        mercato.impostaCommissione(1_001);
+    }
+
+    function testFondiBloccatiNonPuoEssereAnnullatoDopoInizio() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        vm.warp(block.timestamp + 1 days);
+        vm.expectRevert("MercatoTicket: evento gia iniziato");
+        mercato.annullaEvento(idEvento);
+    }
+
+    function testIncassiAnticipatiNonPuoEssereAnnullatoDopoFine() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
+        vm.warp(block.timestamp + 2 days);
+        vm.expectRevert("MercatoTicket: evento gia terminato");
+        mercato.annullaEvento(idEvento);
+    }
+
+    function testSoloValidatoreAutorizzatoPuoConvalidare() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(bob);
+        vm.expectRevert("MercatoTicket: non sei un validatore autorizzato");
+        mercato.validaIngresso(1);
+    }
+
+    function testTrasferimentoNFTDirettoTraUtentiVieneBloccato() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        vm.prank(alice);
+        vm.expectRevert("TicketOnChain: trasferimento consentito solo tramite mercato");
+        nft.transferFrom(alice, bob, 1);
+    }
 }
