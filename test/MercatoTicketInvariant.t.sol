@@ -23,7 +23,7 @@ contract CompratoreSecondarioInvariant {
 
     function compraRivendita(uint256 idBiglietto, uint256 prezzo) external payable {
         mercato.acquistaRivendita{value: msg.value}(idBiglietto);
-        require(msg.value == prezzo, "prezzo test non coerente");
+        require(msg.value == prezzo + (prezzo * mercato.commissionePuntiBase()) / 10_000, "prezzo test non coerente");
     }
 
     function prelevaSaldo() external {
@@ -64,7 +64,7 @@ contract GestoreMercatoInvariant {
         _eventiCreati.push(idEvento);
         uint256 idBiglietto = mercato.prossimoIdBiglietto();
         _bigliettiCreati.push(idBiglietto);
-        mercato.acquistaBiglietto{value: prezzo}(idEvento);
+        mercato.acquistaBiglietto{value: prezzo + (prezzo * mercato.commissionePuntiBase()) / 10_000}(idEvento);
     }
 
     function annullaUltimoEvento() external {
@@ -108,8 +108,9 @@ contract GestoreMercatoInvariant {
         if (n == 0) return;
         uint256 id = _bigliettiCreati[n - 1];
         uint256 prezzo = mercato.prezzoAcquistoOriginale(id);
-        if (address(compratore).balance < prezzo) return;
-        try compratore.compraRivendita{value: prezzo}(id, prezzo) {} catch {}
+        uint256 totale = prezzo + (prezzo * mercato.commissionePuntiBase()) / 10_000;
+        if (address(compratore).balance < totale) return;
+        try compratore.compraRivendita{value: totale}(id, prezzo) {} catch {}
     }
 
     function annullaUltimoAnnuncio() external {
