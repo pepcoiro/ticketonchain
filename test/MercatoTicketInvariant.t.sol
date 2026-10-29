@@ -163,8 +163,8 @@ contract MercatoTicketInvariantTest is StdInvariant, Test {
 
     /// @dev La somma include i due wallet controllati dall'handler, le commissioni
     ///      maturate e le riserve lorde per entrambe le politiche di rimborso.
-    ///      Ricavi e commissioni bloccati non si sommano separatamente: sono già
-    ///      coperti dalla riserva lorda di FondiBloccati.
+    ///      Il prezzo in FondiBloccati è coperto dalla riserva lorda; le commissioni
+    ///      sono contabilizzate separatamente in commissioniAccumulate.
     function invariantContabilitaPassivitaUgualeAlSaldo() public view {
         uint256 passivita = mercato.saldiPrelevabili(address(gestore));
         passivita += mercato.saldiPrelevabili(address(compratore));
