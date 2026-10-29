@@ -63,7 +63,7 @@ contract MercatoTicketReentrancyTest is Test {
             MercatoTicket.PoliticaRimborso.IncassiAnticipati
         );
 
-        wallet.compra{value: 1 ether}(idEvento, 1 ether);
+        wallet.compra{value: 1.015 ether}(idEvento, 1.015 ether);
         mercato.annullaEvento(idEvento);
         mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
 
@@ -86,7 +86,7 @@ contract MercatoTicketReentrancyTest is Test {
             MercatoTicket.PoliticaRimborso.FondiBloccati
         );
 
-        wallet.compra{value: 1 ether}(idEvento, 1 ether);
+        wallet.compra{value: 1.015 ether}(idEvento, 1.015 ether);
         assertEq(address(wallet).balance, 0);
 
         mercato.annullaEvento(idEvento);
