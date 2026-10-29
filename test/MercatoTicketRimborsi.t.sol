@@ -61,6 +61,10 @@ contract MercatoTicketRimborsiTest is Test {
 
         mercato.annullaEvento(idEvento);
 
+        assertEq(alice.balance, saldoPrima - 1 ether);
+        assertEq(mercato.saldiPrelevabili(alice), 1 ether);
+        vm.prank(alice);
+        mercato.prelevaSaldo();
         assertEq(alice.balance, saldoPrima);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
@@ -84,7 +88,8 @@ contract MercatoTicketRimborsiTest is Test {
         mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
 
         assertTrue(mercato.bigliettiRimborsati(1));
-        assertEq(alice.balance, saldoPrima);
+        assertEq(alice.balance, saldoPrima - 1 ether);
+        assertEq(mercato.saldiPrelevabili(alice), 1 ether);
         assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
     }
 
@@ -130,7 +135,8 @@ contract MercatoTicketRimborsiTest is Test {
 
         mercato.annullaEvento(idEvento);
 
-        assertEq(alice.balance, saldoPrima);
+        assertEq(alice.balance, saldoPrima - 1 ether);
+        assertEq(mercato.saldiPrelevabili(alice), 1 ether);
         assertTrue(mercato.bigliettiRimborsati(1));
         (address venditore, uint256 prezzoRivendita, bool annuncioAttivo) = mercato.rivendite(1);
         assertEq(venditore, address(0));
@@ -162,7 +168,8 @@ contract MercatoTicketRimborsiTest is Test {
 
         mercato.annullaEvento(idEvento);
 
-        assertEq(bob.balance, saldoBobPrima);
+        assertEq(bob.balance, saldoBobPrima - 1 ether);
+        assertEq(mercato.saldiPrelevabili(bob), 1 ether);
         assertEq(alice.balance, saldoAlicePrima - 1 ether);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.ricaviEventoBloccati(idEvento), 0);
@@ -307,7 +314,8 @@ contract MercatoTicketRimborsiTest is Test {
         assertFalse(mercato.bigliettiRimborsati(1));
         assertEq(nft.ownerOf(1), bob);
         mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
-        assertEq(bob.balance, saldoBob);
+        assertEq(bob.balance, saldoBob - 1 ether);
+        assertEq(mercato.saldiPrelevabili(bob), 1 ether);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.saldiPrelevabili(alice), 0.975 ether);
     }
@@ -349,7 +357,8 @@ contract MercatoTicketRimborsiTest is Test {
         assertTrue(mercato.bigliettiRimborsati(1));
         assertTrue(mercato.bigliettiRimborsati(2));
         assertEq(mercato.saldiPrelevabili(address(wallet)), 1 ether);
-        assertEq(alice.balance, 10 ether);
+        assertEq(alice.balance, 9 ether);
+        assertEq(mercato.saldiPrelevabili(alice), 1 ether);
     }
 
     function testIngressoSoloNellaFinestraTemporaleEUnaVolta() public {
@@ -429,7 +438,8 @@ contract MercatoTicketRimborsiTest is Test {
 
         mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
         assertTrue(mercato.bigliettiRimborsati(1));
-        assertEq(alice.balance, saldoAlice);
+        assertEq(alice.balance, saldoAlice - 1 ether);
+        assertEq(mercato.saldiPrelevabili(alice), 1 ether);
     }
 
     function testFuzzFondiBloccatiRimborsaImportoEsatto(uint96 prezzoRaw) public {
@@ -448,7 +458,8 @@ contract MercatoTicketRimborsiTest is Test {
         vm.prank(alice);
         mercato.acquistaBiglietto{value: prezzo}(idEvento);
         mercato.annullaEvento(idEvento);
-        assertEq(alice.balance, saldoIniziale);
+        assertEq(alice.balance, saldoIniziale - prezzo);
+        assertEq(mercato.saldiPrelevabili(alice), prezzo);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
     }
