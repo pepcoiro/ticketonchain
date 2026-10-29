@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
  * @title TicketOnChain
@@ -13,7 +14,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  *
  *      Prima della pubblicazione su una rete reale, aggiungere ed eseguire test.
  */
-contract TicketOnChain is ERC721, Ownable {
+contract TicketOnChain is ERC721, Ownable2Step {
     /// @notice Indirizzo del contratto del mercato autorizzato.
     address public mercato;
 
@@ -36,6 +37,11 @@ contract TicketOnChain is ERC721, Ownable {
         Ownable(msg.sender)
     {}
 
+    /// @notice Impedisce la rinuncia irreversibile alla proprietà amministrativa.
+    function renounceOwnership() public override onlyOwner {
+        revert("TicketOnChain: rinuncia proprieta disabilitata");
+    }
+
     /// @dev Limita l'esecuzione alle chiamate provenienti dal mercato autorizzato.
     modifier soloMercato() {
         require(msg.sender == mercato, "TicketOnChain: solo il mercato");
@@ -51,7 +57,7 @@ contract TicketOnChain is ERC721, Ownable {
     function impostaMercato(address indirizzoMercato) external onlyOwner {
         require(mercato == address(0), "TicketOnChain: mercato gia impostato");
         require(
-            indirizzoMercato != address(0),
+            indirizzoMercato != address(0) && indirizzoMercato.code.length > 0,
             "TicketOnChain: indirizzo del mercato non valido"
         );
 
