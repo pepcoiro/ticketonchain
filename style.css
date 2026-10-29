@@ -84,6 +84,13 @@ body {
   opacity: 1;
 }
 
+.separatore-oppure {
+  margin: -4px 0;
+  color: var(--bianco);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
 .pulsante-pubblica {
   width: 100%;
   min-height: 56px;
