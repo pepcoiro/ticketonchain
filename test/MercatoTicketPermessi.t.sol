@@ -220,7 +220,7 @@ contract MercatoTicketPermessiTest is Test {
 
         uint256 commissioni = mercato.commissioniAccumulate();
         vm.expectRevert("MercatoTicket: trasferimento ETH fallito");
-        wallet.riceviCommissioni(mercato);
+        mercato.prelevaCommissioni(address(wallet));
         assertEq(mercato.commissioniAccumulate(), commissioni);
     }
 
