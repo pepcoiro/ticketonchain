@@ -54,7 +54,7 @@ contract GestoreMercatoInvariant {
     }
 }
 
-contract MercatoTicketInvariantTest is Test, StdInvariant {
+contract MercatoTicketInvariantTest is StdInvariant, Test {
     MercatoTicket private mercato;
     TicketOnChain private nft;
     GestoreMercatoInvariant private gestore;
