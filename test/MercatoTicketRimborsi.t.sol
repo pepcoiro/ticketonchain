@@ -177,7 +177,8 @@ contract MercatoTicketRimborsiTest is Test {
         vm.prank(alice);
         vm.expectRevert("MercatoTicket: importo non corretto");
         mercato.acquistaBiglietto{value: 0.5 ether}(idEvento);
-        assertEq(mercato.eventi(idEvento).bigliettiVenduti, 0);
+        (,,,,,,,,uint256 venduti,,) = mercato.eventi(idEvento);
+        assertEq(venduti, 0);
     }
 
     function testAcquistoRifiutaEventoInesistente() public {
