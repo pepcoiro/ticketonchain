@@ -45,87 +45,50 @@ body {
 }
 
 .azioni {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.8fr);
-  gap: 20px;
-  width: min(100%, 900px);
-}
-
-.blocco {
   display: flex;
-  min-width: 0;
+  width: min(100%, 560px);
   flex-direction: column;
-  justify-content: center;
-  gap: 14px;
-  padding: 24px;
-  border: 1px solid #292329;
-  border-radius: 16px;
-  background: #141114;
-}
-
-.blocco label,
-.titolo-blocco {
-  color: var(--bianco);
-  font-size: 1.05rem;
-  font-weight: 500;
+  align-items: stretch;
+  gap: 18px;
 }
 
 .barra-ricerca {
   display: flex;
+  width: 100%;
+  min-height: 56px;
   align-items: center;
-  gap: 10px;
-  min-width: 0;
-  min-height: 54px;
-  padding: 5px 6px 5px 16px;
+  padding: 0 18px;
   border: 1px solid #40333f;
   border-radius: 10px;
   background: #0d0d0d;
+  transition: border-color 160ms ease;
 }
 
 .barra-ricerca:focus-within {
   border-color: var(--magenta);
-  outline: 1px solid var(--magenta);
 }
 
 .barra-ricerca input {
   width: 100%;
   min-width: 0;
+  padding: 14px 0;
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--bianco);
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
-.barra-ricerca input::placeholder { color: #8d858d; }
-
-.pulsante-ricerca {
-  display: grid;
-  flex: 0 0 42px;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border: 0;
-  border-radius: 8px;
-  background: #292029;
-  color: var(--bianco);
-  cursor: pointer;
-}
-
-.pulsante-ricerca svg {
-  width: 21px;
-  height: 21px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-width: 1.8;
+.barra-ricerca input::placeholder {
+  color: #a39aa3;
+  opacity: 1;
 }
 
 .pulsante-pubblica {
   width: 100%;
-  min-height: 54px;
-  padding: 12px 20px;
+  min-height: 56px;
+  padding: 14px 20px;
   border: 0;
   border-radius: 10px;
   background: linear-gradient(110deg, var(--viola) 0%, var(--magenta) 100%);
@@ -133,12 +96,13 @@ body {
   font: inherit;
   font-size: 1rem;
   font-weight: 600;
+  letter-spacing: 0.04em;
   cursor: pointer;
   transition: filter 160ms ease, transform 160ms ease;
 }
 
 .pulsante-pubblica:hover { filter: brightness(1.15); }
-.pulsante-pubblica:active { transform: scale(0.985); }
+.pulsante-pubblica:active { transform: scale(0.99); }
 
 button:focus-visible,
 input:focus-visible {
@@ -147,7 +111,6 @@ input:focus-visible {
 }
 
 @media (max-width: 640px) {
-  .pagina { gap: 56px; padding: 36px 20px; }
-  .azioni { grid-template-columns: 1fr; gap: 14px; max-width: 440px; }
-  .blocco { padding: 20px; }
+  .pagina { gap: 48px; padding: 32px 22px; }
+  .azioni { max-width: 440px; gap: 16px; }
 }
