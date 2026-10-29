@@ -78,10 +78,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     /// @dev Serve a contabilizzare correttamente i rimborsi anche se la commissione cambia in seguito.
     mapping(uint256 idBiglietto => uint256 importo) public commissioneAcquistoOriginale;
 
-    /// @notice Commissioni iniziali accantonate fino all'inizio dell'evento.
-    mapping(uint256 idEvento => uint256 importo) public commissioniEventoBloccate;
-
-    /// @notice Indica se il biglietto è già stato rimborsato.
+     /// @notice Indica se il biglietto è già stato rimborsato.
     mapping(uint256 idBiglietto => bool rimborsato) public bigliettiRimborsati;
 
     /// @notice Politica economica scelta dall'organizzatore alla creazione dell'evento.
@@ -591,8 +588,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         require(importo > 0, "MercatoTicket: nessun ricavo da prelevare");
         ricaviEventoBloccati[idEvento] = 0;
         saldiPrelevabili[msg.sender] += importo;
-        commissioniEventoBloccate[idEvento] = 0;
-        fondiRimborsoEvento[idEvento] = 0;
+         fondiRimborsoEvento[idEvento] = 0;
 
         emit RicaviEventoSbloccati(idEvento, msg.sender, importo);
     }
