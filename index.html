@@ -15,6 +15,26 @@
 <body>
   <main class="pagina">
     <h1 class="logo" aria-label="TicketOnChain">TICKETONCHAIN</h1>
+
+    <section class="azioni" aria-label="Azioni principali">
+      <div class="blocco blocco-ricerca">
+        <label for="cerca-evento">Cerca evento</label>
+        <form class="barra-ricerca" role="search">
+          <input id="cerca-evento" name="q" type="search" placeholder="Nome evento, artista o luogo..." autocomplete="off">
+          <button type="submit" class="pulsante-ricerca" aria-label="Cerca evento">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10.8" cy="10.8" r="6.8"></circle>
+              <path d="m16 16 4.2 4.2"></path>
+            </svg>
+          </button>
+        </form>
+      </div>
+
+      <div class="blocco blocco-pubblica">
+        <span class="titolo-blocco">Pubblica evento</span>
+        <button type="button" class="pulsante-pubblica">Pubblica evento</button>
+      </div>
+    </section>
   </main>
 </body>
 </html>
