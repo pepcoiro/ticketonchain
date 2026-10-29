@@ -391,7 +391,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         uint256 numeroBigliettoEvento = evento.bigliettiVenduti;
         string memory uriBiglietto = string.concat(
             evento.uriMetadatiBase,
-            numeroBiglietto.toString(),
+            numeroBigliettoEvento.toString(),
             ".json"
         );
         // Aggiorna prima lo stato e i saldi, prima della chiamata esterna al contratto NFT.
@@ -677,40 +677,8 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /*
-     * Non esiste una funzione di rimborso individuale: il rimborso è collettivo,
-     * automatico con FondiBloccati e avviato dall'organizzatore con IncassiAnticipati.
+     * Non esiste una funzione di rimborso individuale: i rimborsi sono collettivi.
      */
-    function prelevaSaldo() external nonReentrant {
-        uint256 idEvento = eventoDelBiglietto[idBiglietto];
-        require(idEvento != 0, "MercatoTicket: biglietto non riconosciuto");
-        Evento storage evento = eventi[idEvento];
-        require(evento.annullato, "MercatoTicket: evento non annullato");
-        require(evento.politicaRimborso == PoliticaRimborso.FondiBloccati, "MercatoTicket: rimborso on-chain non previsto dalla politica scelta");
-        require(!bigliettiRimborsati[idBiglietto], "MercatoTicket: biglietto gia rimborsato");
-        address proprietario = contrattoBiglietti.ownerOf(idBiglietto);
-        if (proprietario == address(this)) {
-            AnnuncioRivendita memory annuncio = rivendite[idBiglietto];
-            require(annuncio.attivo && annuncio.venditore == msg.sender, "MercatoTicket: solo venditore dell annuncio");
-            delete rivendite[idBiglietto];
-        } else {
-            require(proprietario == msg.sender, "MercatoTicket: solo proprietario del biglietto");
-        }
-
-        uint256 importo = prezzoAcquistoOriginale[idBiglietto];
-        require(fondiRimborsoEvento[idEvento] >= importo, "MercatoTicket: fondi rimborso insufficienti");
-
-        bigliettiRimborsati[idBiglietto] = true;
-        fondiRimborsoEvento[idEvento] -= importo;
-        uint256 commissione = commissioneAcquistoOriginale[idBiglietto];
-        ricaviEventoBloccati[idEvento] -= importo - commissione;
-        commissioniEventoBloccate[idEvento] -= commissione;
-        contrattoBiglietti.distruggiBiglietto(idBiglietto);
-
-        (bool riuscito, ) = payable(msg.sender).call{value: importo}("");
-        require(riuscito, "MercatoTicket: trasferimento rimborso fallito");
-
-        emit RimborsoRichiesto(idEvento, idBiglietto, msg.sender, importo);
-    }
 
     /**
      * @notice Preleva il saldo disponibile del chiamante.
