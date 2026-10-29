@@ -29,7 +29,7 @@ I contratti usano il trasferimento di proprietà a due passaggi (`Ownable2Step`)
 - La sospensione non blocca i prelievi dei saldi già maturati, la convalida degli ingressi o l'annullamento di un annuncio per restituire il biglietto al venditore.
 - Gli aggiornamenti dei saldi e delle commissioni nell'acquisto iniziale vengono eseguiti prima della chiamata al contratto NFT; se la creazione dell'NFT fallisce, l'intera transazione viene annullata.
 
-Questi accorgimenti non sostituiscono una revisione indipendente del codice. Il contratto non è pronto per la rete principale finché non sarà compilato, testato e sottoposto a revisione.
+Questi accorgimenti non sostituiscono una revisione indipendente del codice. La suite automatizzata è una verifica di regressione, non un audit e non garantisce l'assenza di vulnerabilità.
 
 ## Data dell'evento e chiusura delle vendite
 
@@ -72,13 +72,15 @@ La scelta è registrata nell'evento e non può essere cambiata con le funzioni a
 
 La piattaforma non anticipa fondi propri. La dicitura informativa non elimina eventuali obblighi legali dell'organizzatore o della piattaforma: condizioni d'uso e comunicazioni agli acquirenti devono essere verificate rispetto alla normativa applicabile.
 
-La modalità `FondiBloccati` riguarda gli incassi iniziali; le somme pagate per le rivendite vengono accreditate al venditore come saldo prelevabile. La cancellazione con `IncassiAnticipati` è consentita fino alla fine prevista dell'evento; dopo l'annullamento l'organizzatore può avviare i rimborsi anche se l'evento è già iniziato. Con `FondiBloccati`, l'annullamento resta consentito solo prima dell'inizio, perché gli incassi possono essere sbloccati da quel momento. La suite Foundry copre acquisti, rivendite, annullamenti, rimborsi, permessi, pause, prelievi e alcuni casi limite; resta una suite di regressione, non un audit indipendente.
+La modalità `FondiBloccati` riguarda gli incassi iniziali; le somme pagate per le rivendite vengono accreditate al venditore come saldo prelevabile. La cancellazione con `IncassiAnticipati` è consentita fino alla fine prevista dell'evento; dopo l'annullamento l'organizzatore può avviare i rimborsi anche se l'evento è già iniziato. Con `FondiBloccati`, l'annullamento resta consentito solo prima dell'inizio, perché gli incassi possono essere sbloccati da quel momento. La suite Foundry copre acquisti, rivendite, annullamenti, rimborsi, permessi, pause, prelievi, test fuzz, scenari avversariali e invarianti; resta una suite di regressione, non un audit indipendente.
 
 I nomi delle funzioni e i commenti del progetto sono in italiano per rendere il codice più comprensibile durante lo sviluppo.
 
-## Sviluppo
+## Sviluppo e controlli automatici
 
-Il progetto resta un prototipo. La CI compila i contratti ed esegue attualmente cinque test Foundry sui rimborsi, inclusi lotti superiori a 20 biglietti e rivendite. La suite non copre ancora tutte le combinazioni di accessi, trasferimenti, sospensioni, fallimenti dei pagamenti e contabilità: prima del deploy servono ulteriori test, revisione indipendente e verifica dei flussi economici. Per gli eventi con IncassiAnticipati, l'organizzatore deve rifinanziare il contratto con l'intero lordo delle vendite iniziali prima di avviare i rimborsi.
+Il progetto è un prototipo in verifica. La CI compila i contratti, esegue la suite Foundry (test funzionali, fuzz, test avversariali e invarianti) e analizza il codice con Slither. I rimborsi vengono accreditati come saldi prelevabili, senza inviare ETH direttamente ai wallet durante l'elaborazione del lotto: ogni destinatario deve effettuare una transazione separata per prelevare il saldo. Questo evita callback ostili e griefing tramite consumo di gas durante i rimborsi.
+
+La contabilità della modalità IncassiAnticipati richiede ancora una verifica specifica: se i crediti dell'organizzatore e le commissioni maturate restano prelevabili dopo il finanziamento dei rimborsi, possono coesistere con la passività dei rimborsi. Prima del deploy va definito e verificato come queste passività si coordinano; nessuna regola economica viene modificata da questa nota. I controlli automatici non equivalgono a un audit indipendente.
 
 ## Ordine di pubblicazione su una rete di prova
 
@@ -86,7 +88,7 @@ Il progetto resta un prototipo. La CI compila i contratti ed esegue attualmente 
 2. Pubblica `MercatoTicket` passando al costruttore l'indirizzo del contratto NFT.
 3. Dal proprietario di `TicketOnChain`, esegui `impostaMercato(indirizzoMercato)`.
 4. L'amministratore autorizza gli organizzatori tramite `impostaOrganizzatore(indirizzo, true)`.
-5. Crea un evento e prova acquisto, approvazione, rivendita e prelievo quando la fase di test verrà avviata.
+5. Crea un evento e verifica acquisto, approvazione, rivendita, annullamento, rimborso e prelievo sulla rete di prova.
 
 **Attenzione:** l'indirizzo del mercato può essere impostato una sola volta. Controlla l'indirizzo prima di confermare la transazione.
 
@@ -96,4 +98,4 @@ Per un evento con URI base `ipfs://CID/`, il mercato assegna i metadati usando u
 
 ## Stato
 
-Prototipo in sviluppo. La verifica dell'identità è rimandata; il limite attuale è applicato per wallet. La CI esegue una suite Foundry con test funzionali, test fuzz, test di rientranza e invarianti stateful, oltre ad analisi statica Slither con soglia di fallimento per finding ad alta gravità. Il superamento dei controlli automatici non equivale a un audit indipendente: il contratto non deve essere considerato pronto per la mainnet finché non sarà sottoposto a revisione indipendente e testato su rete di prova.
+Prototipo in sviluppo. La verifica dell'identità è rimandata; il limite attuale è applicato per wallet. La CI esegue una suite Foundry con test funzionali, test fuzz, scenari avversariali e invarianti stateful, oltre ad analisi statica Slither con soglia di fallimento per finding ad alta gravità. Il superamento dei controlli automatici non equivale a un audit indipendente: il contratto non deve essere considerato pronto per la mainnet finché non sarà sottoposto a revisione indipendente e testato su rete di prova.
