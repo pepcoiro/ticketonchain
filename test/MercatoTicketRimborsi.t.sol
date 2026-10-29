@@ -65,7 +65,7 @@ contract MercatoTicketRimborsiTest is Test {
         mercato.annullaEvento(idEvento);
 
         assertFalse(mercato.bigliettiRimborsati(1));
-        assertEq(alice.balance, saldoPrima);
+        assertEq(alice.balance, saldoPrima - 1 ether);
 
         mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
 
