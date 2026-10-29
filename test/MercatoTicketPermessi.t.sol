@@ -157,7 +157,7 @@ contract MercatoTicketPermessiTest is Test {
     function testEventoEsauritoNonPuoEssereRiattivato() public {
         uint256 idEvento = _evento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1 ether, 1);
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
 
         vm.expectRevert("MercatoTicket: tutti i biglietti sono stati venduti");
         mercato.aggiornaEvento(idEvento, 1 ether, true);
@@ -211,7 +211,7 @@ contract MercatoTicketPermessiTest is Test {
         );
 
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
 
         uint256 credito = mercato.saldiPrelevabili(address(wallet));
         vm.expectRevert("MercatoTicket: trasferimento ETH fallito");
@@ -256,7 +256,7 @@ contract MercatoTicketPermessiTest is Test {
         mercato.validaIngresso(999);
 
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
 
         vm.expectRevert("MercatoTicket: evento non iniziato");
         mercato.validaIngresso(1);
