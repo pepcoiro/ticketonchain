@@ -629,11 +629,6 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         _processaRimborsiEvento(idEvento, quantita);
     }
 
-    // Slither segnala una possibile rientranza qui, ma tutti gli ingressi esterni che raggiungono
-    // questa routine sono protetti da nonReentrant (annullaEvento, avviaRimborsiCollettivi,
-    // processaRimborsiEvento). Il test MercatoTicketReentrancyTest verifica il callback ostile.
-    // La disattivazione e' limitata a questa routine; gli altri rilevamenti restano attivi.
-    // slither-disable-start reentrancy-eth
     function _processaRimborsiEvento(uint256 idEvento, uint256 quantita) internal {
         uint256[] storage biglietti = _bigliettiEvento[idEvento];
         uint256 posizione = cursoreRimborsiEvento[idEvento];
@@ -667,18 +662,16 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
             }
 
             contrattoBiglietti.distruggiBiglietto(idBiglietto);
-            (bool riuscito, ) = payable(destinatario).call{value: importo}("");
-            if (!riuscito) {
-                // Un wallet che rifiuta ETH non deve bloccare i rimborsi degli altri.
-                saldiPrelevabili[destinatario] += importo;
-            }
+
+            // Pull payment: nessuna chiamata esterna al destinatario durante il rimborso.
+            // Evita griefing tramite consumo di gas e impedisce callback/rientranza dal wallet.
+            saldiPrelevabili[destinatario] += importo;
             emit RimborsoEseguito(idEvento, idBiglietto, destinatario, importo);
         }
 
         cursoreRimborsiEvento[idEvento] = posizione;
         emit AvanzamentoRimborsi(idEvento, posizione, biglietti.length, posizione == biglietti.length);
     }
-    // slither-disable-end reentrancy-eth
 
     /**
      * @notice Restituisce il numero di biglietti ancora da elaborare per un evento.
