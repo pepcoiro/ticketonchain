@@ -5,6 +5,16 @@ import {Test} from "forge-std/Test.sol";
 import {MercatoTicket} from "../contracts/MercatoTicket.sol";
 import {TicketOnChain} from "../contracts/TicketOnChain.sol";
 
+contract PortafoglioCheRifiutaETH {
+    function compra(MercatoTicket mercato, uint256 idEvento) external payable {
+        mercato.acquistaBiglietto{value: msg.value}(idEvento);
+    }
+
+    receive() external payable {
+        revert("ricezione rifiutata");
+    }
+}
+
 contract MercatoTicketRimborsiTest is Test {
     MercatoTicket private mercato;
     TicketOnChain private nft;
@@ -319,5 +329,85 @@ contract MercatoTicketRimborsiTest is Test {
         mercato.processaRimborsiEvento(idEvento, 0);
         vm.expectRevert("MercatoTicket: dimensione lotto non valida");
         mercato.processaRimborsiEvento(idEvento, 21);
+    }
+
+    function testWalletCheRifiutaETHNonBloccaRimborsiDegliAltri() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 2);
+        PortafoglioCheRifiutaETH wallet = new PortafoglioCheRifiutaETH();
+        vm.deal(address(wallet), 1 ether);
+        wallet.compra{value: 1 ether}(mercato, idEvento);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+
+        mercato.annullaEvento(idEvento);
+
+        assertTrue(mercato.bigliettiRimborsati(1));
+        assertTrue(mercato.bigliettiRimborsati(2));
+        assertEq(mercato.saldiPrelevabili(address(wallet)), 1 ether);
+        assertEq(alice.balance, 10 ether);
+    }
+
+    function testIngressoSoloNellaFinestraTemporaleEUnaVolta() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        address validatore = address(0xCAFE);
+        mercato.impostaValidatoreIngresso(idEvento, validatore, true);
+
+        vm.prank(validatore);
+        vm.expectRevert("MercatoTicket: evento non iniziato");
+        mercato.validaIngresso(1);
+
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(validatore);
+        mercato.validaIngresso(1);
+        vm.prank(validatore);
+        vm.expectRevert("MercatoTicket: ingresso gia utilizzato");
+        mercato.validaIngresso(1);
+
+        vm.warp(block.timestamp + 1 days + 1);
+        vm.prank(validatore);
+        vm.expectRevert("MercatoTicket: evento terminato");
+        mercato.validaIngresso(1);
+    }
+
+    function testIngressoRifiutatoPerBigliettoInRivendita() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        vm.prank(alice);
+        nft.approve(address(mercato), 1);
+        vm.prank(alice);
+        mercato.mettiInRivendita(1, 1 ether);
+        mercato.impostaValidatoreIngresso(idEvento, address(this), true);
+        vm.warp(block.timestamp + 1 days);
+        vm.expectRevert("MercatoTicket: biglietto in rivendita");
+        mercato.validaIngresso(1);
+    }
+
+    function testPausaMercatoBloccaAcquistiMaNonPrelievi() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.sospendiMercato();
+        vm.prank(bob);
+        vm.expectRevert();
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        uint256 saldoPrima = address(this).balance;
+        mercato.prelevaSaldo();
+        assertEq(address(this).balance, saldoPrima + 0.975 ether);
+    }
+
+    function testSoloProprietarioMercatoPuoPrelevareCommissioni() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        vm.prank(bob);
+        vm.expectRevert();
+        mercato.prelevaCommissioni(bob);
+        uint256 saldoPrima = bob.balance;
+        mercato.prelevaCommissioni(bob);
+        assertEq(bob.balance, saldoPrima + 0.025 ether);
+        assertEq(mercato.commissioniAccumulate(), 0);
     }
 }
