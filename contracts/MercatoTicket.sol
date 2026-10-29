@@ -53,7 +53,8 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     /// @dev Denaro prelevabile da organizzatori e venditori.
     mapping(address beneficiario => uint256 importo) public saldiPrelevabili;
 
-    /// @notice Commissioni accumulate e prelevabili dal proprietario del mercato.
+    /// @notice Commissioni TOC maturate immediatamente su ogni vendita iniziale e rivendita.
+    /// @dev Diventano subito prelevabili dalla piattaforma tramite prelevaCommissioni().
     uint256 public commissioniAccumulate;
 
     /// @notice Prezzo dei biglietti delle vendite iniziali bloccato fino all'inizio dell'evento.
@@ -62,7 +63,8 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     /// @notice Fondi accantonati per rimborsare i biglietti in caso di annullamento.
     mapping(uint256 idEvento => uint256 importo) public fondiRimborsoEvento;
 
-    /// @notice Totale lordo incassato per i biglietti iniziali dell'evento.
+    /// @notice Somma dei prezzi dei biglietti venduti inizialmente, esclusi i costi TOC.
+    /// @dev È l'importo che l'organizzatore deve finanziare in caso di rimborso collettivo con IncassiAnticipati.
     mapping(uint256 idEvento => uint256 importo) public totaleVenditeEvento;
 
     /// @notice Elenco dei biglietti venduti per ogni evento, usato per i rimborsi a lotti.
@@ -74,8 +76,8 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     /// @notice Indica che la procedura di rimborso collettivo è stata avviata.
     mapping(uint256 idEvento => bool avviata) public rimborsiCollettiviAvviati;
 
-    /// @notice Commissione effettivamente trattenuta per ciascun acquisto iniziale.
-    /// @dev Serve a contabilizzare correttamente i rimborsi anche se la commissione cambia in seguito.
+    /// @notice Commissione TOC effettivamente pagata per ciascun acquisto iniziale.
+    /// @dev È informativa e non viene mai inclusa nel rimborso del biglietto.
     mapping(uint256 idBiglietto => uint256 importo) public commissioneAcquistoOriginale;
 
      /// @notice Indica se il biglietto è già stato rimborsato.
