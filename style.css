@@ -1,0 +1,45 @@
+:root {
+  color-scheme: dark;
+  --sfondo: #0d0d0d;
+  --bianco: #ffffff;
+  --viola: #590242;
+  --magenta: #a61b81;
+  --rosa: #f2055c;
+  --blu: #0460d9;
+  --ciano: #05f2f2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--sfondo);
+  color: var(--bianco);
+  font-family: "Jost", sans-serif;
+}
+
+.pagina {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.logo {
+  margin: 0;
+  color: var(--bianco);
+  font-size: clamp(1.8rem, 6vw, 4.5rem);
+  font-weight: 600;
+  letter-spacing: 0.075em;
+  line-height: 1;
+  text-align: center;
+}
