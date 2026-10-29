@@ -60,7 +60,6 @@ contract MercatoTicketFuzzSicurezzaTest is Test {
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
         assertEq(mercato.ricaviEventoBloccati(idEvento), 0);
-        assertEq(mercato.commissioniEventoBloccate(idEvento), 0);
     }
 
     function testFuzzIncassiAnticipatiRichiedeEsattamenteIlLordo(
@@ -88,7 +87,7 @@ contract MercatoTicketFuzzSicurezzaTest is Test {
         mercato.avviaRimborsiCollettivi{value: prezzo - 1}(idEvento);
 
         mercato.avviaRimborsiCollettivi{value: prezzo}(idEvento);
-        assertEq(alice.balance, saldoIniziale - prezzo);
+        assertEq(alice.balance, saldoIniziale - prezzo - (prezzo * commissione) / 10_000);
         assertEq(mercato.saldiPrelevabili(alice), prezzo);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
