@@ -139,7 +139,7 @@ Questa sezione è un inventario pratico delle funzioni esposte dai contratti. Le
 | `rimborsiCollettiviAvviati(idEvento)` | Verifica se la procedura di rimborso collettivo è stata avviata. |
 | `cursoreRimborsiEvento(idEvento)` | Legge la posizione raggiunta dall'elaborazione dei rimborsi a lotti. |
 | `bigliettiDaRimborsare(idEvento)` | Restituisce quanti biglietti restano da esaminare nella procedura di rimborso. |
-| `paused()` | Verifica se il mercato è temporaneamente sospeso. |
+| `onERC721Received(operatore, proprietario, idBiglietto, dati)` | Callback tecnica ERC-721 chiamata quando il mercato riceve un NFT con trasferimento sicuro. Accetta soltanto biglietti provenienti dal contratto NFT configurato; normalmente non va chiamata direttamente dall'interfaccia. |\n| `paused()` | Verifica se il mercato è temporaneamente sospeso. |
 | `owner()` / `pendingOwner()` | Legge il proprietario amministrativo attuale e l'eventuale nuovo proprietario in attesa di accettazione. |
 
 #### Azioni degli utenti e degli organizzatori
