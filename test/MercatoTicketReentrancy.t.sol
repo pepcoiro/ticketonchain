@@ -46,6 +46,29 @@ contract MercatoTicketReentrancyTest is Test {
         vm.deal(address(wallet), 0);
     }
 
+    function testAvvioRimborsiIncassiAnticipatiBloccaRientranza() public {
+        vm.deal(address(this), 1 ether);
+        uint256 idEvento = mercato.creaEvento(
+            "Evento anticipato",
+            "ipfs://anticipato/",
+            1 ether,
+            1,
+            block.timestamp + 1 days,
+            block.timestamp + 2 days,
+            MercatoTicket.PoliticaRimborso.IncassiAnticipati
+        );
+
+        wallet.compra{value: 1 ether}(idEvento, 1 ether);
+        mercato.annullaEvento(idEvento);
+        mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
+
+        assertTrue(wallet.tentativoRientranzaBloccato());
+        assertEq(address(wallet).balance, 1 ether);
+        assertTrue(mercato.bigliettiRimborsati(1));
+        assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
+        assertEq(mercato.bigliettiDaRimborsare(idEvento), 0);
+    }
+
     function testRimborsoBloccaRientranzaEAccreditaUnaSolaVolta() public {
         uint256 idEvento = mercato.creaEvento(
             "Evento rientranza",
