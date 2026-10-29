@@ -62,13 +62,13 @@ La rivendita è consentita esclusivamente al prezzo originariamente pagato per q
 Alla creazione dell'evento, l'organizzatore deve scegliere il parametro `politicaRimborso`:
 
 - `FondiBloccati` (valore enum `0`): gli incassi netti, le commissioni e la riserva per i rimborsi restano nel contratto fino all'inizio dell'evento. Se l'organizzatore annulla l'evento prima dell'inizio, il contratto avvia automaticamente i rimborsi collettivi: gli acquirenti non devono presentare richieste. Per non superare i limiti di gas, i biglietti vengono elaborati in lotti da massimo 20; l'interfaccia/servizio può proseguire i lotti chiamando `processaRimborsiEvento`. Ogni biglietto rimborsato viene distrutto. Se era in custodia per una rivendita, il rimborso spetta al venditore dell'annuncio.
-- `IncassiAnticipati` (valore enum `1`): il netto della vendita diventa subito prelevabile dall'organizzatore e la commissione diventa subito disponibile alla piattaforma. In questa modalità il contratto non accantona fondi per i rimborsi e `richiediRimborso` non è disponibile. Eventuali rimborsi devono essere gestiti dall'organizzatore al di fuori del rimborso automatico del contratto.
+- `IncassiAnticipati` (valore enum `1`): il netto della vendita diventa subito prelevabile dall'organizzatore e la commissione diventa subito disponibile alla piattaforma. In caso di annullamento, l'organizzatore deve avviare il rimborso collettivo e versare nel contratto l'intero importo lordo delle vendite tramite `avviaRimborsiCollettivi(idEvento)`. L'elaborazione prosegue a lotti con `processaRimborsiEvento`; gli acquirenti non devono presentare richieste. Se il pagamento diretto a un wallet fallisce, l'importo viene accreditato nel suo saldo prelevabile.
 
 La scelta è registrata nell'evento e non può essere cambiata con le funzioni attuali. Non è previsto un rimborso automatico per semplice ripensamento dell'acquirente. L'interfaccia deve mostrare la politica prima dell'acquisto e mantenere una dicitura coerente:
 
 **FondiBloccati:** «In caso di annullamento, il contratto avvia automaticamente il rimborso del prezzo del biglietto. Gli incassi sono custoditi nel contratto fino all'inizio dell'evento.»
 
-**IncassiAnticipati:** «L'organizzatore può prelevare gli incassi prima dell'evento. In caso di annullamento, non è prevista una garanzia automatica di rimborso finanziata dalla piattaforma.»
+**IncassiAnticipati:** «L'organizzatore può prelevare subito gli incassi. In caso di annullamento, il rimborso collettivo richiede che l'organizzatore versi nuovamente nel contratto l'intero importo lordo dei biglietti venduti.»
 
 La piattaforma non anticipa fondi propri. La dicitura informativa non elimina eventuali obblighi legali dell'organizzatore o della piattaforma: condizioni d'uso e comunicazioni agli acquirenti devono essere verificate rispetto alla normativa applicabile.
 

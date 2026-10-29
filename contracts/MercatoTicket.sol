@@ -340,7 +340,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
      *      Con FondiBloccati i possessori possono richiedere il rimborso dai fondi
      *      custoditi. Con IncassiAnticipati il contratto non garantisce rimborsi on-chain.
      */
-    function annullaEvento(uint256 idEvento) external {
+    function annullaEvento(uint256 idEvento) external nonReentrant {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
         require(!evento.annullato, "MercatoTicket: evento gia annullato");
@@ -349,13 +349,13 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         evento.annullato = true;
         evento.attivo = false;
 
+        emit EventoAnnullato(idEvento, msg.sender);
+
         if (evento.politicaRimborso == PoliticaRimborso.FondiBloccati) {
             // I fondi sono già custoditi: l'annullamento avvia automaticamente i rimborsi.
             rimborsiCollettiviAvviati[idEvento] = true;
             _processaRimborsiEvento(idEvento, MASSIMO_RIMBORSI_PER_BATCH);
         }
-
-        emit EventoAnnullato(idEvento, msg.sender);
     }
 
     /**
