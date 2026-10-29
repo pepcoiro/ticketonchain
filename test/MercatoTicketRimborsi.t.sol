@@ -415,4 +415,53 @@ contract MercatoTicketRimborsiTest is Test {
         assertEq(bob.balance, saldoPrima + 0.025 ether);
         assertEq(mercato.commissioniAccumulate(), 0);
     }
+
+    function testIncassiAnticipatiPuoEssereAnnullatoDuranteEvento() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1);
+        uint256 saldoAlice = alice.balance;
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+
+        vm.warp(block.timestamp + 1 days);
+        mercato.annullaEvento(idEvento);
+        assertFalse(mercato.bigliettiRimborsati(1));
+        assertEq(alice.balance, saldoAlice - 1 ether);
+
+        mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
+        assertTrue(mercato.bigliettiRimborsati(1));
+        assertEq(alice.balance, saldoAlice);
+    }
+
+    function testFuzzFondiBloccatiRimborsaImportoEsatto(uint96 prezzoRaw) public {
+        uint256 prezzo = bound(uint256(prezzoRaw), 1, 1 ether);
+        uint256 idEvento = mercato.creaEvento(
+            "Evento fuzz",
+            "ipfs://fuzz/",
+            prezzo,
+            1,
+            block.timestamp + 1 days,
+            block.timestamp + 2 days,
+            MercatoTicket.PoliticaRimborso.FondiBloccati
+        );
+        vm.deal(alice, prezzo + 1 ether);
+        uint256 saldoIniziale = alice.balance;
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: prezzo}(idEvento);
+        mercato.annullaEvento(idEvento);
+        assertEq(alice.balance, saldoIniziale);
+        assertTrue(mercato.bigliettiRimborsati(1));
+        assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
+    }
+
+    function testCambioCommissioneNonModificaContabilitaAcquistoGiaEffettuato() public {
+        uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.impostaCommissione(1_000);
+        mercato.annullaEvento(idEvento);
+        assertEq(mercato.commissioneAcquistoOriginale(1), 0.025 ether);
+        assertEq(mercato.ricaviEventoBloccati(idEvento), 0);
+        assertEq(mercato.commissioniEventoBloccate(idEvento), 0);
+        assertEq(mercato.commissioniAccumulate(), 0);
+    }
 }
