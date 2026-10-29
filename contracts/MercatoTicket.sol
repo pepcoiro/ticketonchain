@@ -220,7 +220,8 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
      * @notice Registra un evento e mette in vendita i suoi biglietti.
      * @param nomeEvento Nome leggibile dell'evento.
      * @param uriMetadatiBase URI che termina con "/" e contiene i file JSON dei biglietti.
-     *        Per esempio, "ipfs://CID/": il biglietto 12 userà "ipfs://CID/12.json".
+     *        Per esempio, "ipfs://CID/": il primo biglietto di ogni evento usa "ipfs://CID/1.json".
+     *        Il progressivo dei metadati è indipendente dal token ID globale.
      * @param prezzoBiglietto Prezzo di un biglietto in ETH (espresso in wei).
      * @param quantitaMassima Numero totale di biglietti emettibili per l'evento.
      * @param timestampInizio Data e ora di inizio dell'evento come timestamp Unix in secondi.
