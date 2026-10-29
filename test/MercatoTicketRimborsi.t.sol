@@ -454,8 +454,10 @@ contract MercatoTicketRimborsiTest is Test {
         );
         vm.deal(alice, prezzo + 1 ether);
         uint256 saldoIniziale = alice.balance;
+        uint256 commissione = (prezzo * mercato.commissionePuntiBase()) / 10_000;
+        uint256 importoTotale = prezzo + commissione;
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: prezzo + (prezzo * mercato.commissionePuntiBase()) / 10_000}(idEvento);
+        mercato.acquistaBiglietto{value: importoTotale}(idEvento);
         mercato.annullaEvento(idEvento);
         assertEq(alice.balance, saldoIniziale - prezzo - (prezzo * mercato.commissionePuntiBase()) / 10_000);
         assertEq(mercato.saldiPrelevabili(alice), prezzo);
