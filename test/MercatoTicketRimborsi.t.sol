@@ -61,11 +61,11 @@ contract MercatoTicketRimborsiTest is Test {
 
         mercato.annullaEvento(idEvento);
 
-        assertEq(alice.balance, saldoPrima - 1 ether);
+        assertEq(alice.balance, saldoPrima - 1.015 ether);
         assertEq(mercato.saldiPrelevabili(alice), 1 ether);
         vm.prank(alice);
         mercato.prelevaSaldo();
-        assertEq(alice.balance, saldoPrima);
+        assertEq(alice.balance, saldoPrima - 0.015 ether);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
         assertEq(mercato.bigliettiDaRimborsare(idEvento), 0);
@@ -168,12 +168,11 @@ contract MercatoTicketRimborsiTest is Test {
 
         mercato.annullaEvento(idEvento);
 
-        assertEq(bob.balance, saldoBobPrima - 1 ether);
+        assertEq(bob.balance, saldoBobPrima - 1.015 ether);
         assertEq(mercato.saldiPrelevabili(bob), 1 ether);
-        assertEq(alice.balance, saldoAlicePrima - 1 ether);
+        assertEq(alice.balance, saldoAlicePrima - 1.015 ether);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.ricaviEventoBloccati(idEvento), 0);
-        assertEq(mercato.commissioniEventoBloccate(idEvento), 0);
         assertEq(mercato.commissioniAccumulate(), 0.03 ether);
         vm.expectRevert();
         nft.ownerOf(1);
@@ -292,7 +291,7 @@ contract MercatoTicketRimborsiTest is Test {
         vm.prank(alice);
         mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
         mercato.annullaEvento(idEvento);
-        assertEq(alice.balance, saldoAlice - 1 ether);
+        assertEq(alice.balance, saldoAlice - 1.015 ether);
         assertFalse(mercato.bigliettiRimborsati(1));
         vm.expectRevert("MercatoTicket: versare l'intero importo delle vendite");
         mercato.avviaRimborsiCollettivi{value: 0.5 ether}(idEvento);
@@ -314,7 +313,7 @@ contract MercatoTicketRimborsiTest is Test {
         assertFalse(mercato.bigliettiRimborsati(1));
         assertEq(nft.ownerOf(1), bob);
         mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
-        assertEq(bob.balance, saldoBob - 1 ether);
+        assertEq(bob.balance, saldoBob - 1.015 ether);
         assertEq(mercato.saldiPrelevabili(bob), 1 ether);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.saldiPrelevabili(alice), 1 ether);
@@ -347,7 +346,7 @@ contract MercatoTicketRimborsiTest is Test {
     function testWalletCheRifiutaETHNonBloccaRimborsiDegliAltri() public {
         uint256 idEvento = _creaEvento(MercatoTicket.PoliticaRimborso.FondiBloccati, 2);
         PortafoglioCheRifiutaETH wallet = new PortafoglioCheRifiutaETH();
-        vm.deal(address(wallet), 1 ether);
+        vm.deal(address(wallet), 2 ether);
         wallet.compra{value: 1.015 ether}(mercato, idEvento);
         vm.prank(alice);
         mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
@@ -357,7 +356,7 @@ contract MercatoTicketRimborsiTest is Test {
         assertTrue(mercato.bigliettiRimborsati(1));
         assertTrue(mercato.bigliettiRimborsati(2));
         assertEq(mercato.saldiPrelevabili(address(wallet)), 1 ether);
-        assertEq(alice.balance, 9 ether);
+        assertEq(alice.balance, 8.985 ether);
         assertEq(mercato.saldiPrelevabili(alice), 1 ether);
     }
 
@@ -434,11 +433,11 @@ contract MercatoTicketRimborsiTest is Test {
         vm.warp(block.timestamp + 1 days);
         mercato.annullaEvento(idEvento);
         assertFalse(mercato.bigliettiRimborsati(1));
-        assertEq(alice.balance, saldoAlice - 1 ether);
+        assertEq(alice.balance, saldoAlice - 1.015 ether);
 
         mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
         assertTrue(mercato.bigliettiRimborsati(1));
-        assertEq(alice.balance, saldoAlice - 1 ether);
+        assertEq(alice.balance, saldoAlice - 1.015 ether);
         assertEq(mercato.saldiPrelevabili(alice), 1 ether);
     }
 
@@ -472,7 +471,6 @@ contract MercatoTicketRimborsiTest is Test {
         mercato.annullaEvento(idEvento);
         assertEq(mercato.commissioneAcquistoOriginale(1), 0.015 ether);
         assertEq(mercato.ricaviEventoBloccati(idEvento), 0);
-        assertEq(mercato.commissioniEventoBloccate(idEvento), 0);
         assertEq(mercato.commissioniAccumulate(), 0.015 ether);
     }
 
