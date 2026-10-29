@@ -72,13 +72,13 @@ La scelta è registrata nell'evento e non può essere cambiata con le funzioni a
 
 La piattaforma non anticipa fondi propri. La dicitura informativa non elimina eventuali obblighi legali dell'organizzatore o della piattaforma: condizioni d'uso e comunicazioni agli acquirenti devono essere verificate rispetto alla normativa applicabile.
 
-La modalità `FondiBloccati` riguarda gli incassi iniziali; le somme pagate per le rivendite vengono accreditate al venditore come saldo prelevabile. Questa implementazione non è stata compilata né testata in questa fase.
+La modalità `FondiBloccati` riguarda gli incassi iniziali; le somme pagate per le rivendite vengono accreditate al venditore come saldo prelevabile. I flussi di rimborso hanno test Foundry automatizzati, ma la copertura è ancora parziale e non sostituisce una revisione indipendente.
 
 I nomi delle funzioni e i commenti del progetto sono in italiano per rendere il codice più comprensibile durante lo sviluppo.
 
 ## Sviluppo
 
-Il progetto resta un prototipo. Le modifiche ai contratti devono essere compilate e testate in Foundry prima del deploy. I rimborsi non dipendono da richieste individuali: dopo l'annullamento, la procedura collettiva elabora i biglietti a lotti per contenere il consumo di gas. Per gli eventi con IncassiAnticipati, l'organizzatore deve rifinanziare il contratto con l'intero lordo venduto prima di avviare la procedura. Non distribuire su mainnet prima di aver risolto questo punto e verificato i flussi economici con test.
+Il progetto resta un prototipo. La CI compila i contratti ed esegue attualmente cinque test Foundry sui rimborsi, inclusi lotti superiori a 20 biglietti e rivendite. La suite non copre ancora tutte le combinazioni di accessi, trasferimenti, sospensioni, fallimenti dei pagamenti e contabilità: prima del deploy servono ulteriori test, revisione indipendente e verifica dei flussi economici. Per gli eventi con IncassiAnticipati, l'organizzatore deve rifinanziare il contratto con l'intero lordo delle vendite iniziali prima di avviare i rimborsi.
 
 ## Ordine di pubblicazione su una rete di prova
 
@@ -96,4 +96,4 @@ Per un evento con URI base `ipfs://CID/`, il mercato assegna i metadati usando u
 
 ## Stato
 
-Prototipo in sviluppo. La verifica dell'identità è rimandata; il limite attuale è applicato per wallet. Test e verifiche saranno affrontati successivamente.
+Prototipo in sviluppo. La verifica dell'identità è rimandata; il limite attuale è applicato per wallet. La CI esegue cinque test Foundry, ma non è stato svolto un audit indipendente e il contratto non deve essere considerato pronto per la mainnet.
