@@ -96,4 +96,4 @@ Per un evento con URI base `ipfs://CID/`, il mercato assegna i metadati usando u
 
 ## Stato
 
-Prototipo in sviluppo. La verifica dell'identità è rimandata; il limite attuale è applicato per wallet. La CI esegue una suite Foundry ampliata con test di regressione e un test fuzz sui rimborsi. Non è stato svolto un audit indipendente e il contratto non deve essere considerato pronto per la mainnet.
+Prototipo in sviluppo. La verifica dell'identità è rimandata; il limite attuale è applicato per wallet. La CI esegue una suite Foundry con test funzionali, test fuzz, test di rientranza e invarianti stateful, oltre ad analisi statica Slither con soglia di fallimento per finding ad alta gravità. Il superamento dei controlli automatici non equivale a un audit indipendente: il contratto non deve essere considerato pronto per la mainnet finché non sarà sottoposto a revisione indipendente e testato su rete di prova.
