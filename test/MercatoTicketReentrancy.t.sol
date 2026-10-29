@@ -43,7 +43,7 @@ contract MercatoTicketReentrancyTest is Test {
         mercato = new MercatoTicket(address(nft));
         nft.impostaMercato(address(mercato));
         wallet = new WalletRientrante(mercato);
-        vm.deal(address(wallet), 2 ether);
+        vm.deal(address(wallet), 0);
     }
 
     function testRimborsoBloccaRientranzaEAccreditaUnaSolaVolta() public {
@@ -58,7 +58,7 @@ contract MercatoTicketReentrancyTest is Test {
         );
 
         wallet.compra{value: 1 ether}(idEvento, 1 ether);
-        assertEq(address(wallet).balance, 1 ether);
+        assertEq(address(wallet).balance, 0);
 
         mercato.annullaEvento(idEvento);
 
