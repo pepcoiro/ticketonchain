@@ -20,6 +20,8 @@ L'obiettivo è che TicketOnChain non anticipi denaro proprio per i rimborsi e ch
 - `contracts/TicketOnChain.sol`: NFT ERC-721 dei biglietti. Solo il mercato configurato può creare o trasferire NFT tra proprietari.
 - `contracts/MercatoTicket.sol`: registrazione e annullamento eventi, vendita iniziale, custodia dei biglietti in rivendita, acquisti e gestione dei saldi e delle commissioni.
 
+I contratti usano il trasferimento di proprietà a due passaggi (`Ownable2Step`) e impediscono la rinuncia definitiva alla proprietà amministrativa. Gli indirizzi configurati per il contratto NFT e il mercato devono contenere codice. Queste misure riducono il rischio di errori di configurazione, ma non sostituiscono test e revisione indipendente.
+
 ## Controlli di sicurezza del mercato
 
 - L'amministratore può sospendere temporaneamente le nuove vendite con `sospendiMercato()` e riattivarle con `riattivaMercato()`.
@@ -51,16 +53,18 @@ L'integrazione Proof of Humanity è stata rimossa temporaneamente. Per ora il co
 
 ## Regole di rivendita
 
+La rivendita può essere sospesa separatamente dalle vendite iniziali tramite `impostaRivendita(idEvento, false)`. La sospensione non impedisce al venditore di annullare un annuncio già attivo e recuperare il biglietto. Alla creazione dell'evento la rivendita è abilitata per impostazione predefinita.
+
 La rivendita è consentita esclusivamente al prezzo originariamente pagato per quel biglietto: non sono ammessi né sovrapprezzi né sconti. Il prezzo originario viene registrato on-chain al momento del primo acquisto e resta invariato nelle rivendite successive. La rivendita non restituisce capacità di acquisto al wallet del venditore.
 
 ## Politica di rimborso scelta dall'organizzatore
 
 Alla creazione dell'evento, l'organizzatore deve scegliere il parametro `politicaRimborso`:
 
-- `FondiBloccati` (valore enum `0`): gli incassi netti e le commissioni restano nel contratto fino all'inizio dell'evento. L'organizzatore può sbloccare gli incassi con `prelevaRicaviEvento(idEvento)` solo dall'orario di inizio. Se l'evento viene annullato prima dell'inizio, i possessori attuali dei biglietti possono richiedere on-chain il prezzo originario con `richiediRimborso(idBiglietto)`. Il biglietto NFT viene distrutto dopo il rimborso. Se è in custodia per una rivendita, il venditore deve prima annullare l'annuncio.
+- `FondiBloccati` (valore enum `0`): gli incassi netti e le commissioni restano nel contratto fino all'inizio dell'evento. L'organizzatore può sbloccare gli incassi con `prelevaRicaviEvento(idEvento)` solo dall'orario di inizio. Se l'evento viene annullato prima dell'inizio, i possessori attuali dei biglietti possono richiedere on-chain il prezzo originario con `richiediRimborso(idBiglietto)`. Il biglietto NFT viene distrutto dopo il rimborso. Se è in custodia per una rivendita, il venditore dell'annuncio può richiedere direttamente il rimborso: l'annuncio viene disattivato e il biglietto distrutto nella stessa transazione.
 - `IncassiAnticipati` (valore enum `1`): il netto della vendita diventa subito prelevabile dall'organizzatore e la commissione diventa subito disponibile alla piattaforma. In questa modalità il contratto non accantona fondi per i rimborsi e `richiediRimborso` non è disponibile. Eventuali rimborsi devono essere gestiti dall'organizzatore al di fuori del rimborso automatico del contratto.
 
-La scelta è registrata nell'evento e non può essere cambiata con le funzioni attuali. L'interfaccia deve mostrare la politica prima dell'acquisto e mantenere una dicitura coerente:
+La scelta è registrata nell'evento e non può essere cambiata con le funzioni attuali. Non è previsto un rimborso automatico per semplice ripensamento dell'acquirente. L'interfaccia deve mostrare la politica prima dell'acquisto e mantenere una dicitura coerente:
 
 **FondiBloccati:** «In caso di annullamento, è previsto il rimborso del prezzo del biglietto. Gli incassi sono custoditi nel contratto fino all'inizio dell'evento.»
 
@@ -74,7 +78,7 @@ I nomi delle funzioni e i commenti del progetto sono in italiano per rendere il 
 
 ## Sviluppo
 
-In questa fase il progetto è dedicato all'implementazione dei contratti. Le verifiche automatiche e i test verranno reintrodotti in una fase successiva, quando le funzionalità principali saranno completate.
+Il progetto resta un prototipo. Le modifiche ai contratti devono essere compilate e testate in Foundry prima del deploy. Rimane da definire esplicitamente una politica di scadenza e destinazione per i fondi di rimborso non richiesti dopo l'annullamento: fino a quando questa regola non sarà decisa e implementata, tali fondi possono restare bloccati. Non distribuire su mainnet prima di aver risolto questo punto e verificato i flussi economici con test.
 
 ## Ordine di pubblicazione su una rete di prova
 
@@ -88,7 +92,7 @@ In questa fase il progetto è dedicato all'implementazione dei contratti. Le ver
 
 ## Metadati
 
-Per un evento con URI base `ipfs://CID/`, il mercato associa al biglietto con identificativo 12 l'URI `ipfs://CID/12.json`. I file JSON devono esistere e rispettare il formato dei metadati NFT previsto dal progetto.
+Per un evento con URI base `ipfs://CID/`, il mercato assegna i metadati usando un progressivo indipendente per evento, a partire da 1: il primo biglietto di ogni evento usa `ipfs://CID/1.json`, il secondo `ipfs://CID/2.json` e così via. Il token ID NFT resta invece globale e univoco. L'URI base deve terminare con `/`. I file JSON devono esistere e rispettare il formato dei metadati NFT previsto dal progetto.
 
 ## Stato
 
