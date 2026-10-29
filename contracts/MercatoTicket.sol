@@ -362,7 +362,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         // Registra prima l'appartenenza del biglietto, poi crea l'NFT.
         eventoDelBiglietto[idBiglietto] = idEvento;
         prezzoAcquistoOriginale[idBiglietto] = msg.value;
-        uint256 numeroBigliettoEvento = evento.bigliettiVenduti + 1;
+        uint256 numeroBigliettoEvento = evento.bigliettiVenduti;
         string memory uriBiglietto = string.concat(
             evento.uriMetadatiBase,
             numeroBiglietto.toString(),
