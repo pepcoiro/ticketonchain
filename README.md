@@ -99,3 +99,163 @@ Per un evento con URI base `ipfs://CID/`, il mercato assegna i metadati usando u
 ## Stato
 
 Prototipo in sviluppo. La verifica dell'identità è rimandata; il limite attuale è applicato per wallet. La CI esegue una suite Foundry con test funzionali, test fuzz, scenari avversariali e invarianti stateful, oltre ad analisi statica Slither con soglia di fallimento per finding ad alta gravità. Il superamento dei controlli automatici non equivale a un audit indipendente: il contratto non deve essere considerato pronto per la mainnet finché non sarà sottoposto a revisione indipendente e testato su rete di prova.
+
+
+## Guida frontend: funzioni ed eventi disponibili
+
+Questa sezione è un inventario pratico delle funzioni esposte dai contratti. Le funzioni di lettura possono essere consultate senza inviare una transazione; quelle che modificano lo stato richiedono una transazione firmata dal wallet e, quando previsto, ETH. Le funzioni con permessi limitati possono essere chiamate soltanto dagli indirizzi autorizzati.
+
+### 1. Contratto `MercatoTicket`
+
+È il contratto principale da collegare all'interfaccia: gestisce eventi, acquisti, rivendite, ingressi, saldi e rimborsi.
+
+#### Consultazione dei dati
+
+| Funzione pubblica | A cosa serve nel frontend |
+|---|---|
+| `eventi(idEvento)` | Legge i dati dell'evento: organizzatore, nome, URI metadati, inizio/fine, politica di rimborso, prezzo, quantità massima, biglietti venduti, stato attivo e annullato. |
+| `prossimoIdEvento()` | Legge il prossimo identificativo evento da assegnare. |
+| `prossimoIdBiglietto()` | Legge il prossimo identificativo globale dei biglietti. |
+| `contrattoBiglietti()` | Restituisce l'indirizzo del contratto NFT associato al mercato. |
+| `LIMITE_BIGLIETTI_PER_WALLET()` | Legge il limite cumulativo di acquisti per wallet e per evento: attualmente 6. |
+| `MASSIMO_RIMBORSI_PER_BATCH()` | Legge il limite massimo di biglietti elaborabili in un singolo lotto di rimborso: attualmente 20. |
+| `commissionePuntiBase()` | Legge la commissione corrente in punti base: 250 equivale al 2,5%. |
+| `organizzatoriAutorizzati(indirizzo)` | Verifica se un indirizzo è autorizzato a creare eventi. |
+| `bigliettiAcquistatiPerWallet(idEvento, wallet)` | Legge quanti acquisti sono stati conteggiati per quel wallet e quell'evento. Il conteggio è cumulativo e non diminuisce dopo una rivendita. |
+| `saldiPrelevabili(indirizzo)` | Legge il saldo ETH prelevabile da un indirizzo, inclusi eventuali importi accreditati per rimborsi. |
+| `commissioniAccumulate()` | Legge le commissioni attualmente disponibili per il proprietario del mercato. |
+| `ricaviEventoBloccati(idEvento)` | Legge i ricavi netti ancora bloccati per un evento con politica `FondiBloccati`. |
+| `fondiRimborsoEvento(idEvento)` | Legge i fondi attualmente destinati ai rimborsi dell'evento. |
+| `totaleVenditeEvento(idEvento)` | Legge il totale lordo incassato dalle vendite iniziali. |
+| `commissioniEventoBloccate(idEvento)` | Legge le commissioni iniziali ancora bloccate per l'evento. |
+| `commissioneAcquistoOriginale(idBiglietto)` | Legge la commissione registrata al momento dell'acquisto iniziale di quel biglietto. |
+| `prezzoAcquistoOriginale(idBiglietto)` | Legge il prezzo originario del biglietto, usato anche per vincolare il prezzo di rivendita e calcolare il rimborso. |
+| `eventoDelBiglietto(idBiglietto)` | Restituisce l'evento a cui appartiene il biglietto. |
+| `rivendite(idBiglietto)` | Legge venditore, prezzo e stato dell'annuncio di rivendita. |
+| `rivenditaAttiva(idEvento)` | Verifica se la rivendita è abilitata per un evento. |
+| `ingressiUtilizzati(idBiglietto)` | Verifica se il biglietto è già stato convalidato all'ingresso. |
+| `validatoriIngresso(idEvento, indirizzo)` | Verifica se un indirizzo può convalidare gli ingressi per quell'evento. |
+| `bigliettiRimborsati(idBiglietto)` | Verifica se un biglietto è già stato rimborsato. |
+| `rimborsiCollettiviAvviati(idEvento)` | Verifica se la procedura di rimborso collettivo è stata avviata. |
+| `cursoreRimborsiEvento(idEvento)` | Legge la posizione raggiunta dall'elaborazione dei rimborsi a lotti. |
+| `bigliettiDaRimborsare(idEvento)` | Restituisce quanti biglietti restano da esaminare nella procedura di rimborso. |
+| `paused()` | Verifica se il mercato è temporaneamente sospeso. |
+| `owner()` / `pendingOwner()` | Legge il proprietario amministrativo attuale e l'eventuale nuovo proprietario in attesa di accettazione. |
+
+#### Azioni degli utenti e degli organizzatori
+
+| Funzione | Chi può usarla e cosa fa |
+|---|---|
+| `creaEvento(nomeEvento, uriMetadatiBase, prezzoBiglietto, quantitaMassima, timestampInizio, timestampFine, politicaRimborso)` | Un organizzatore autorizzato crea un evento. Il prezzo è espresso in wei; le date sono timestamp Unix in secondi; la politica è `FondiBloccati = 0` oppure `IncassiAnticipati = 1`. L'URI base deve terminare con `/`. |
+| `aggiornaEvento(idEvento, nuovoPrezzo, attivo)` | L'organizzatore modifica il prezzo o sospende le vendite prima dell'inizio dell'evento. |
+| `impostaRivendita(idEvento, attiva)` | L'organizzatore abilita o disabilita il mercato secondario prima dell'inizio. |
+| `acquistaBiglietto(idEvento)` | Acquista un biglietto iniziale inviando esattamente il prezzo richiesto in ETH. |
+| `mettiInRivendita(idBiglietto, prezzoRichiesto)` | Il proprietario pubblica un annuncio al prezzo originario. Prima deve autorizzare il contratto di mercato sul contratto NFT con `approve` oppure `setApprovalForAll`. |
+| `annullaRivendita(idBiglietto)` | Il venditore ritira un annuncio attivo e recupera il proprio NFT. |
+| `acquistaRivendita(idBiglietto)` | Acquista un biglietto già messo in rivendita, pagando il prezzo esatto dell'annuncio. |
+| `prelevaSaldo()` | L'utente preleva sul proprio wallet il saldo ETH disponibile a suo nome. È lo stesso meccanismo usato per incassi da rivendita e accrediti di rimborso. |
+| `prelevaRicaviEvento(idEvento)` | L'organizzatore preleva i ricavi netti bloccati, dopo l'inizio dell'evento, solo se è stata scelta la politica `FondiBloccati` e l'evento non è annullato. |
+| `impostaValidatoreIngresso(idEvento, validatore, autorizzato)` | L'organizzatore autorizza o revoca un addetto alla convalida degli ingressi. |
+| `validaIngresso(idBiglietto)` | L'organizzatore o un validatore autorizzato registra l'ingresso. È consentito solo durante la finestra temporale dell'evento; un biglietto può essere usato una sola volta. |
+| `annullaEvento(idEvento)` | L'organizzatore annulla l'evento. Con `FondiBloccati` avvia automaticamente i rimborsi; con `IncassiAnticipati` l'organizzatore deve finanziare separatamente il rimborso collettivo. |
+| `avviaRimborsiCollettivi(idEvento)` | Solo l'organizzatore di un evento annullato con `IncassiAnticipati` può avviare i rimborsi, versando in una sola volta l'intero importo lordo delle vendite iniziali. |
+| `processaRimborsiEvento(idEvento, quantita)` | Prosegue i rimborsi già avviati. Può chiamarla qualsiasi indirizzo; `quantita` deve essere tra 1 e 20. Il frontend/servizio deve ripetere le chiamate fino al completamento. |
+
+#### Azioni riservate all'amministratore del mercato
+
+| Funzione | A cosa serve |
+|---|---|
+| `impostaOrganizzatore(organizzatore, autorizzato)` | Autorizza o revoca un indirizzo che può creare nuovi eventi. |
+| `sospendiMercato()` | Sospende temporaneamente le operazioni di vendita. |
+| `riattivaMercato()` | Riattiva le operazioni di vendita. |
+| `impostaCommissione(nuovaCommissionePuntiBase)` | Modifica la commissione, con limite massimo del 10% (1.000 punti base). |
+| `prelevaCommissioni(destinatario)` | Preleva le commissioni accumulate verso l'indirizzo scelto. |
+| `transferOwnership(nuovoProprietario)` | Avvia il trasferimento della proprietà amministrativa in due passaggi. |
+| `acceptOwnership()` | Il nuovo proprietario completa il trasferimento. |
+| `renounceOwnership()` | Presente per compatibilità con il sistema di proprietà, ma è disabilitata e termina con errore. |
+
+#### Eventi emessi da `MercatoTicket`
+
+Il frontend può ascoltare questi eventi in tempo reale e/o leggerli dai log della blockchain per aggiornare schermate, cronologia e notifiche.
+
+| Evento | Quando viene emesso |
+|---|---|
+| `EventoCreato` | Un evento viene creato, con identificativo, organizzatore, nome, prezzo, quantità, date e politica di rimborso. |
+| `EventoAggiornato` | L'organizzatore aggiorna prezzo o stato delle vendite. |
+| `EventoAnnullato` | Un evento viene annullato. |
+| `BigliettoAcquistato` | Viene completato un acquisto iniziale. |
+| `BigliettoMessoInVendita` | Un biglietto viene messo in rivendita. |
+| `RivenditaAnnullata` | Un annuncio viene ritirato e il biglietto restituito al venditore. |
+| `BigliettoRivenduto` | Un acquisto sul mercato secondario viene completato; include venditore, acquirente, prezzo e commissione. |
+| `SaldoPrelevato` | Un utente preleva il proprio saldo. |
+| `CommissioniPrelevate` | Il proprietario preleva le commissioni. |
+| `CommissioneAggiornata` | La commissione del mercato viene modificata. |
+| `OrganizzatoreAutorizzato` | Un indirizzo viene autorizzato o revocato come organizzatore. |
+| `RimborsoEseguito` | Un biglietto è stato elaborato per il rimborso; indica destinatario e importo accreditato. |
+| `RimborsiCollettiviAvviati` | È stata avviata la procedura collettiva, con importo finanziato. |
+| `AvanzamentoRimborsi` | Comunica quanti biglietti sono stati elaborati, quanti sono totali e se la procedura è completata. |
+| `RicaviEventoSbloccati` | I ricavi bloccati vengono resi disponibili all'organizzatore. |
+| `AcquistoWalletRegistrato` | Aggiorna il conteggio cumulativo di acquisti per wallet ed evento. |
+| `IngressoValidato` | Un biglietto viene convalidato all'ingresso. |
+| `ValidatoreIngressoImpostato` | Un addetto viene autorizzato o revocato per un evento. |
+| `Paused` / `Unpaused` | Il mercato viene sospeso o riattivato. |
+| `OwnershipTransferStarted` / `OwnershipTransferred` | Inizia o si completa il trasferimento della proprietà amministrativa. |
+
+### 2. Contratto NFT `TicketOnChain`
+
+Questo contratto rappresenta i biglietti come NFT ERC-721. La maggior parte delle operazioni quotidiane passa dal mercato; il frontend può comunque consultare i dati NFT e deve usare le approvazioni ERC-721 prima di mettere un biglietto in rivendita.
+
+#### Consultazione
+
+| Funzione | A cosa serve |
+|---|---|
+| `name()` / `symbol()` | Legge il nome e il simbolo della collezione NFT. |
+| `mercato()` | Legge l'indirizzo del mercato autorizzato. |
+| `ownerOf(idBiglietto)` | Legge il proprietario attuale del biglietto. |
+| `balanceOf(indirizzo)` | Legge quanti NFT possiede un indirizzo. |
+| `tokenURI(idBiglietto)` | Legge l'URI dei metadati del biglietto. |
+| `getApproved(idBiglietto)` | Legge l'indirizzo approvato a trasferire quel singolo NFT. |
+| `isApprovedForAll(proprietario, operatore)` | Verifica se un operatore è autorizzato a gestire tutti gli NFT del proprietario. |
+| `supportsInterface(interfaccia)` | Verifica il supporto alle interfacce standard ERC-165/ERC-721. |
+| `owner()` / `pendingOwner()` | Legge il proprietario amministrativo e l'eventuale nuovo proprietario in attesa. |
+
+#### Operazioni NFT
+
+| Funzione | A cosa serve |
+|---|---|
+| `approve(operatore, idBiglietto)` | Autorizza un operatore a trasferire uno specifico NFT. Serve, per esempio, per mettere un biglietto in rivendita. |
+| `setApprovalForAll(operatore, approvato)` | Autorizza o revoca un operatore per tutti gli NFT del wallet. È più ampia dell'approvazione singola: l'interfaccia deve spiegarlo chiaramente. |
+| `safeTransferFrom(proprietario, destinatario, idBiglietto)` | Funzione ERC-721 standard, ma i trasferimenti diretti tra utenti sono bloccati dal contratto: devono passare dal mercato. Il mercato la usa per prendere in custodia e consegnare i biglietti. |
+| `safeTransferFrom(proprietario, destinatario, idBiglietto, dati)` | Variante ERC-721 con dati aggiuntivi; valgono le stesse restrizioni ai trasferimenti diretti. |
+| `transferFrom(proprietario, destinatario, idBiglietto)` | Funzione ERC-721 standard, ma i trasferimenti diretti tra proprietari sono bloccati. Non va usata dal frontend per trasferire un biglietto tra utenti. |
+| `impostaMercato(indirizzoMercato)` | Il proprietario configura il mercato autorizzato. Può essere eseguita una sola volta: controllare l'indirizzo prima di confermare. |
+| `transferOwnership(nuovoProprietario)` / `acceptOwnership()` | Trasferimento amministrativo in due passaggi. |
+| `creaBiglietto(destinatario, identificativoBiglietto, indirizzoMetadati)` | Funzione tecnica riservata al mercato autorizzato. Il frontend ordinario non deve chiamarla direttamente. |
+| `distruggiBiglietto(identificativoBiglietto)` | Funzione tecnica riservata al mercato, usata durante i rimborsi per distruggere l'NFT rimborsato. |
+| `renounceOwnership()` | Disabilitata: la chiamata termina con errore. |
+
+#### Eventi del contratto NFT
+
+| Evento | Quando viene emesso |
+|---|---|
+| `Transfer` | Creazione, trasferimento o distruzione di un NFT secondo ERC-721. |
+| `Approval` | Approvazione o modifica dell'operatore di un singolo NFT. |
+| `ApprovalForAll` | Approvazione o revoca di un operatore per tutti gli NFT di un wallet. |
+| `MercatoImpostato` | Viene configurato l'indirizzo del mercato. |
+| `BigliettoCreato` | Viene creato un biglietto, con ID, destinatario e URI dei metadati. |
+| `OwnershipTransferStarted` / `OwnershipTransferred` | Inizia o si completa il trasferimento della proprietà amministrativa. |
+
+### 3. Indicazioni pratiche per costruire il frontend
+
+- **Esplora eventi:** leggere gli eventi tramite `eventi(idEvento)` e usare `prossimoIdEvento()` come limite di scansione, ricordando che gli identificativi partono da 1. Per una lista completa e una ricerca efficiente conviene indicizzare gli eventi `EventoCreato`; il contratto non espone una funzione che restituisca tutti gli eventi in un unico array.
+- **Dettaglio evento:** mostrare prezzo, disponibilità (`quantitaMassima - bigliettiVenduti)), date, stato, organizzatore e politica di rimborso prima dell'acquisto.
+- **Wallet e biglietti posseduti:** usare gli eventi `BigliettoAcquistato`/`BigliettoRivenduto` e le funzioni NFT `ownerOf` e `tokenURI`. Il contratto non espone una funzione che restituisca direttamente tutti i biglietti di un wallet.
+- **Prezzi:** i valori monetari sono espressi in wei; convertire in ETH per la visualizzazione e usare una conversione precisa per i pagamenti. Le date sono timestamp Unix in secondi.
+- **Rivendita:** verificare la proprietà NFT e lo stato dell'evento, chiedere l'approvazione ERC-721 e poi chiamare `mettiInRivendita`. Il prezzo richiesto deve essere esattamente il prezzo originario.
+- **Rimborsi:** non esiste una richiesta individuale di rimborso da parte dell'acquirente. Il frontend deve mostrare lo stato dei rimborsi collettivi e, quando necessario, proseguire i lotti con `processaRimborsiEvento` fino a quando `bigliettiDaRimborsare` restituisce 0. Gli importi rimborsati diventano saldi prelevabili: il destinatario deve poi chiamare `prelevaSaldo()`.
+- **Ingressi:** mostrare lo stato di utilizzo del biglietto e consentire `validaIngresso` solo agli organizzatori o ai validatori autorizzati. La blockchain impedisce una seconda convalida.
+- **Permessi:** prima di mostrare azioni amministrative o dell'organizzatore, confrontare l'indirizzo con `owner()`, `eventi(idEvento).organizzatore`, `organizzatoriAutorizzati` e `validatoriIngresso`, secondo il caso. I controlli grafici non sostituiscono i controlli dei contratti.
+- **Eventi e aggiornamenti:** ascoltare gli eventi della blockchain per aggiornare l'interfaccia, ma verificare sempre lo stato corrente del contratto prima di considerare conclusa un'operazione.
+- **Funzioni standard di proprietà:** entrambi i contratti ereditano il trasferimento amministrativo in due passaggi da OpenZeppelin. Le chiamate `transferOwnership` e `acceptOwnership` sono disponibili solo per gli indirizzi previsti dal relativo meccanismo.
+
+Questo inventario descrive le funzioni presenti nel codice sorgente. Prima dell'integrazione reale, generare l'ABI dai contratti compilati e verificare nomi, tipi e overload contro l'ABI effettiva. Il contratto resta un prototipo in sviluppo e questa documentazione non costituisce un audit di sicurezza.
