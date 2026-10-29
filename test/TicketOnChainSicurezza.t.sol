@@ -29,7 +29,7 @@ contract TicketOnChainSicurezzaTest is Test {
             MercatoTicket.PoliticaRimborso.FondiBloccati
         );
         vm.prank(alice);
-        mercato.acquistaBiglietto{value: 1 ether}(idEvento);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
     }
 
     function testSoloProprietarioPuoConfigurareMercato() public {
