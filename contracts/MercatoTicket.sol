@@ -42,7 +42,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
 
     /// @notice Commissione applicata alle vendite, espressa in punti base.
     /// @dev 100 punti base corrispondono all'1%; 1.000 corrispondono al 10%.
-    uint256 public commissionePuntiBase = 250;
+    uint256 public commissionePuntiBase = 150;
 
     /// @notice Prossimo identificativo disponibile per un evento.
     uint256 public prossimoIdEvento = 1;
@@ -56,7 +56,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     /// @notice Commissioni accumulate e prelevabili dal proprietario del mercato.
     uint256 public commissioniAccumulate;
 
-    /// @notice Ricavi netti delle vendite iniziali bloccati fino all'inizio dell'evento.
+    /// @notice Prezzo dei biglietti delle vendite iniziali bloccato fino all'inizio dell'evento.
     mapping(uint256 idEvento => uint256 importo) public ricaviEventoBloccati;
 
     /// @notice Fondi accantonati per rimborsare i biglietti in caso di annullamento.
@@ -365,10 +365,10 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Acquista un biglietto nuovo pagando in ETH.
-     * @dev La commissione viene accantonata e il ricavo netto diventa prelevabile
-     *      dall'organizzatore. Il pagamento non viene inviato direttamente durante
-     *      l'acquisto, riducendo il rischio di chiamate esterne non necessarie.
+     * @notice Acquista un biglietto nuovo pagando prezzo e commissione TOC in ETH.
+     * @dev Prezzo e commissione sono contabilizzati separatamente; la commissione
+     *      diventa subito disponibile alla piattaforma. La gas fee è pagata dal wallet
+     *      alla rete e non è inclusa in msg.value.
      */
     function acquistaBiglietto(uint256 idEvento) external payable whenNotPaused nonReentrant {
         Evento storage evento = eventi[idEvento];
@@ -380,7 +380,8 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
             evento.bigliettiVenduti < evento.quantitaMassima,
             "MercatoTicket: biglietti esauriti"
         );
-        require(msg.value == evento.prezzo, "MercatoTicket: importo non corretto");
+        uint256 commissione = (evento.prezzo * commissionePuntiBase) / 10_000;
+        require(msg.value == evento.prezzo + commissione, "MercatoTicket: importo non corretto");
 
         _registraAcquistoWallet(idEvento, msg.sender);
 
@@ -388,7 +389,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         prossimoIdBiglietto += 1;
         evento.bigliettiVenduti += 1;
         _bigliettiEvento[idEvento].push(idBiglietto);
-        totaleVenditeEvento[idEvento] += msg.value;
+        totaleVenditeEvento[idEvento] += evento.prezzo;
 
         // Registra prima l'appartenenza del biglietto, poi crea l'NFT.
         eventoDelBiglietto[idBiglietto] = idEvento;
@@ -400,17 +401,16 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
             ".json"
         );
         // Aggiorna prima lo stato e i saldi, prima della chiamata esterna al contratto NFT.
-        uint256 commissione = (msg.value * commissionePuntiBase) / 10_000;
         commissioneAcquistoOriginale[idBiglietto] = commissione;
+        // La commissione è separata dal prezzo del biglietto e diventa subito
+        // disponibile alla piattaforma, indipendentemente dalla politica di rimborso.
+        commissioniAccumulate += commissione;
         if (evento.politicaRimborso == PoliticaRimborso.FondiBloccati) {
-            ricaviEventoBloccati[idEvento] += msg.value - commissione;
-            commissioniEventoBloccate[idEvento] += commissione;
-            fondiRimborsoEvento[idEvento] += msg.value;
+            ricaviEventoBloccati[idEvento] += evento.prezzo;
+            fondiRimborsoEvento[idEvento] += evento.prezzo;
         } else {
-            // In modalità IncassiAnticipati, i fondi diventano subito prelevabili
-            // dall'organizzatore e le commissioni dalla piattaforma.
-            saldiPrelevabili[evento.organizzatore] += msg.value - commissione;
-            commissioniAccumulate += commissione;
+            // L'organizzatore riceve il prezzo intero del biglietto, senza la commissione TOC.
+            saldiPrelevabili[evento.organizzatore] += evento.prezzo;
         }
 
         // Se la creazione dell'NFT fallisce, l'intera transazione viene annullata.
@@ -475,7 +475,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
 
     /**
      * @notice Acquista un biglietto custodito dal mercato per una rivendita.
-     * @dev Il venditore riceve un saldo prelevabile al netto della commissione.
+     * @dev L'acquirente paga prezzo più commissione; il venditore riceve il prezzo intero.
      */
     function acquistaRivendita(uint256 idBiglietto) external payable whenNotPaused nonReentrant {
         AnnuncioRivendita memory annuncio = rivendite[idBiglietto];
@@ -485,7 +485,8 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         require(rivenditaAttiva[eventoDelBiglietto[idBiglietto]], "MercatoTicket: rivendita sospesa");
         require(block.timestamp < evento.timestampInizio, "MercatoTicket: evento gia iniziato");
         require(msg.sender != annuncio.venditore, "MercatoTicket: non puoi acquistare il tuo biglietto");
-        require(msg.value == annuncio.prezzo, "MercatoTicket: importo non corretto");
+        uint256 commissione = (annuncio.prezzo * commissionePuntiBase) / 10_000;
+        require(msg.value == annuncio.prezzo + commissione, "MercatoTicket: importo non corretto");
         _registraAcquistoWallet(eventoDelBiglietto[idBiglietto], msg.sender);
         require(
             contrattoBiglietti.ownerOf(idBiglietto) == address(this),
@@ -494,8 +495,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
 
         delete rivendite[idBiglietto];
 
-        uint256 commissione = (msg.value * commissionePuntiBase) / 10_000;
-        saldiPrelevabili[annuncio.venditore] += msg.value - commissione;
+        saldiPrelevabili[annuncio.venditore] += annuncio.prezzo;
         commissioniAccumulate += commissione;
 
         contrattoBiglietti.safeTransferFrom(address(this), msg.sender, idBiglietto);
@@ -591,7 +591,6 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         require(importo > 0, "MercatoTicket: nessun ricavo da prelevare");
         ricaviEventoBloccati[idEvento] = 0;
         saldiPrelevabili[msg.sender] += importo;
-        commissioniAccumulate += commissioniEventoBloccate[idEvento];
         commissioniEventoBloccate[idEvento] = 0;
         fondiRimborsoEvento[idEvento] = 0;
 
@@ -656,9 +655,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
 
             Evento storage evento = eventi[idEvento];
             if (evento.politicaRimborso == PoliticaRimborso.FondiBloccati) {
-                uint256 commissione = commissioneAcquistoOriginale[idBiglietto];
-                ricaviEventoBloccati[idEvento] -= importo - commissione;
-                commissioniEventoBloccate[idEvento] -= commissione;
+                ricaviEventoBloccati[idEvento] -= importo;
             }
 
             contrattoBiglietti.distruggiBiglietto(idBiglietto);
