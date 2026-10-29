@@ -39,7 +39,6 @@ body {
   color: var(--bianco);
   font-size: clamp(1.8rem, 6vw, 4.5rem);
   font-weight: 600;
-  letter-spacing: 0.075em;
   line-height: 1;
   text-align: center;
 }
