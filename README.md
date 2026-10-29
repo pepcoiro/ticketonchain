@@ -68,7 +68,7 @@ La scelta è registrata nell'evento e non può essere cambiata con le funzioni a
 
 **FondiBloccati:** «In caso di annullamento, il contratto avvia automaticamente il rimborso del prezzo del biglietto. Gli incassi sono custoditi nel contratto fino all'inizio dell'evento.»
 
-**IncassiAnticipati:** «L'organizzatore riceve subito gli incassi ed è responsabile dei rimborsi in caso di annullamento. TicketOnChain non trattiene né anticipa il denaro per questo evento. Per avviare i rimborsi, l'organizzatore deve accedere al sito e versare nel contratto l'intero importo lordo dei biglietti venduti. Se non versa i fondi necessari, il rimborso on-chain non può essere eseguito.»
+**IncassiAnticipati:** «L'organizzatore riceve subito il prezzo dei biglietti ed è responsabile dei rimborsi in caso di annullamento. La commissione TicketOnChain è separata e non rimborsabile. Per avviare i rimborsi, l'organizzatore deve versare nel contratto la somma dei prezzi dei biglietti iniziali, escluse le commissioni. Se non versa i fondi necessari, il rimborso on-chain non può essere eseguito.»
 
 La piattaforma non anticipa fondi propri. La dicitura informativa non elimina eventuali obblighi legali dell'organizzatore o della piattaforma: condizioni d'uso e comunicazioni agli acquirenti devono essere verificate rispetto alla normativa applicabile.
 
@@ -93,7 +93,7 @@ Esempio con prezzo del biglietto di 50 €: prezzo 50,00 € + commissione TOC 0
 
 Il progetto è un prototipo in verifica. La CI compila i contratti, esegue la suite Foundry (test funzionali, fuzz, test avversariali e invarianti) e analizza il codice con Slither. I rimborsi vengono accreditati come saldi prelevabili, senza inviare ETH direttamente ai wallet durante l'elaborazione del lotto: ogni destinatario deve effettuare una transazione separata per prelevare il saldo. Questo evita callback ostili e griefing tramite consumo di gas durante i rimborsi.
 
-La suite di invarianti verifica la copertura contabile delle passività in entrambe le modalità, includendo saldi prelevabili, commissioni accumulate e riserve lorde di rimborso. I ricavi e le commissioni ancora bloccati non vengono sommati una seconda volta, perché sono già coperti dalla riserva lorda. I controlli automatici non equivalgono a un audit indipendente.
+La suite di invarianti verifica la copertura contabile delle passività in entrambe le modalità, includendo saldi prelevabili, commissioni accumulate e riserve per il prezzo intero dei biglietti. Le commissioni TOC sono contabilizzate separatamente e non fanno parte della riserva rimborsabile. I controlli automatici non equivalgono a un audit indipendente.
 
 ## Ordine di pubblicazione su una rete di prova
 
@@ -172,7 +172,7 @@ Questa sezione è un inventario pratico delle funzioni esposte dai contratti. Le
 | `impostaValidatoreIngresso(idEvento, validatore, autorizzato)` | L'organizzatore autorizza o revoca un addetto alla convalida degli ingressi. |
 | `validaIngresso(idBiglietto)` | L'organizzatore o un validatore autorizzato registra l'ingresso. È consentito solo durante la finestra temporale dell'evento; un biglietto può essere usato una sola volta. |
 | `annullaEvento(idEvento)` | L'organizzatore annulla l'evento. Con `FondiBloccati` avvia automaticamente i rimborsi; con `IncassiAnticipati` l'organizzatore deve finanziare separatamente il rimborso collettivo. |
-| `avviaRimborsiCollettivi(idEvento)` | Solo l'organizzatore di un evento annullato con `IncassiAnticipati` può avviare i rimborsi, versando in una sola volta l'intero importo lordo delle vendite iniziali. |
+| `avviaRimborsiCollettivi(idEvento)` | Solo l'organizzatore di un evento annullato con `IncassiAnticipati` può avviare i rimborsi, versando in una sola volta la somma dei prezzi delle vendite iniziali, escluse le commissioni TOC. |
 | `processaRimborsiEvento(idEvento, quantita)` | Prosegue i rimborsi già avviati. Può chiamarla qualsiasi indirizzo; `quantita` deve essere tra 1 e 20. Il frontend/servizio deve ripetere le chiamate fino al completamento. |
 
 #### Azioni riservate all'amministratore del mercato
