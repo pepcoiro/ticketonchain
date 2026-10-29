@@ -1,0 +1,4 @@
+/* TicketOnChain frontend
+   Punto di ingresso JavaScript per le prossime fasi.
+   Questa prima schermata non richiede interazioni.
+*/
