@@ -12,6 +12,8 @@ contract MercatoTicketRimborsiTest is Test {
     address private alice = address(0xA11CE);
     address private bob = address(0xB0B);
 
+    receive() external payable {}
+
     function setUp() public {
         vm.deal(address(this), 100 ether);
         nft = new TicketOnChain();
