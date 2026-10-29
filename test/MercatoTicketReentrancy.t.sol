@@ -24,6 +24,11 @@ contract WalletRientrante {
     }
 
     receive() external payable {
+        // Simula un destinatario che consuma gas nel callback: il rimborso non deve chiamarlo.
+        uint256 i;
+        while (i < 1000) {
+            unchecked { i++; }
+        }
         try mercato.processaRimborsiEvento(idEvento, 20) {
             // Un rientro riuscito sarebbe un problema di sicurezza.
             tentativoRientranzaBloccato = false;
@@ -46,7 +51,7 @@ contract MercatoTicketReentrancyTest is Test {
         vm.deal(address(wallet), 0);
     }
 
-    function testAvvioRimborsiIncassiAnticipatiBloccaRientranza() public {
+    function testIncassiAnticipatiAccreditaSenzaCallback() public {
         vm.deal(address(this), 2 ether);
         uint256 idEvento = mercato.creaEvento(
             "Evento anticipato",
@@ -62,14 +67,15 @@ contract MercatoTicketReentrancyTest is Test {
         mercato.annullaEvento(idEvento);
         mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
 
-        assertTrue(wallet.tentativoRientranzaBloccato());
-        assertEq(address(wallet).balance, 1 ether);
+        assertFalse(wallet.tentativoRientranzaBloccato(), "il wallet non deve ricevere callback");
+        assertEq(address(wallet).balance, 0);
+        assertEq(mercato.saldiPrelevabili(address(wallet)), 1 ether);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
         assertEq(mercato.bigliettiDaRimborsare(idEvento), 0);
     }
 
-    function testRimborsoBloccaRientranzaEAccreditaUnaSolaVolta() public {
+    function testFondiBloccatiAccreditaSenzaCallback() public {
         uint256 idEvento = mercato.creaEvento(
             "Evento rientranza",
             "ipfs://rientranza/",
@@ -85,8 +91,9 @@ contract MercatoTicketReentrancyTest is Test {
 
         mercato.annullaEvento(idEvento);
 
-        assertTrue(wallet.tentativoRientranzaBloccato());
-        assertEq(address(wallet).balance, 1 ether);
+        assertFalse(wallet.tentativoRientranzaBloccato(), "il wallet non deve ricevere callback");
+        assertEq(address(wallet).balance, 0);
+        assertEq(mercato.saldiPrelevabili(address(wallet)), 1 ether);
         assertTrue(mercato.bigliettiRimborsati(1));
         assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
         assertEq(mercato.bigliettiDaRimborsare(idEvento), 0);
