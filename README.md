@@ -61,10 +61,10 @@ La rivendita è consentita esclusivamente al prezzo originariamente pagato per q
 
 Alla creazione dell'evento, l'organizzatore deve scegliere il parametro `politicaRimborso`:
 
-- `FondiBloccati` (valore enum `0`): gli incassi netti, le commissioni e la riserva per i rimborsi restano nel contratto fino all'inizio dell'evento. Se l'organizzatore annulla prima dell'inizio, il contratto avvia automaticamente i rimborsi collettivi. Per contenere il gas, la procedura elabora al massimo 20 biglietti per transazione; l'interfaccia/servizio deve proseguire automaticamente i lotti chiamando `processaRimborsiEvento` fino al completamento. Questo numero è un limite tecnico per transazione, non un limite ai biglietti dell'evento. Se un annuncio di rivendita è ancora aperto, il venditore è il possessore economico del biglietto; se la rivendita è stata completata, il rimborso spetta al nuovo proprietario. Ogni biglietto rimborsato viene distrutto.
-- `IncassiAnticipati` (valore enum `1`): il netto della vendita diventa subito prelevabile dall'organizzatore e la commissione diventa subito disponibile alla piattaforma. Se l'evento viene annullato prima della fine, l'organizzatore è responsabile di accedere al sito e avviare il rimborso collettivo, versando nel contratto l'intero importo lordo delle vendite tramite `avviaRimborsiCollettivi(idEvento)`. TicketOnChain non custodisce quegli incassi e non anticipa denaro. Se l'organizzatore non versa i fondi, il rimborso on-chain non può essere eseguito. L'elaborazione prosegue a lotti tecnici con `processaRimborsiEvento`; l'interfaccia deve continuare i lotti automaticamente e gli acquirenti non devono presentare richieste. Se il pagamento diretto a un wallet fallisce, l'importo viene accreditato nel suo saldo prelevabile.
+- `FondiBloccati` (valore enum `0`): il prezzo intero dei biglietti e la relativa riserva per i rimborsi restano nel contratto fino all'inizio dell'evento. La commissione TOC, pagata separatamente dall'acquirente, diventa subito disponibile alla piattaforma e non viene mai rimborsata. Se l'organizzatore annulla prima dell'inizio, il contratto avvia automaticamente i rimborsi collettivi. Per contenere il gas, la procedura elabora al massimo 20 biglietti per transazione; l'interfaccia/servizio deve proseguire automaticamente i lotti chiamando `processaRimborsiEvento` fino al completamento. Questo numero è un limite tecnico per transazione, non un limite ai biglietti dell'evento. Se un annuncio di rivendita è ancora aperto, il venditore è il possessore economico del biglietto; se la rivendita è stata completata, il rimborso spetta al nuovo proprietario. Ogni biglietto rimborsato viene distrutto.
+- `IncassiAnticipati` (valore enum `1`): il prezzo intero dei biglietti diventa subito prelevabile dall'organizzatore e la commissione TOC diventa subito disponibile alla piattaforma. Se l'evento viene annullato prima della fine, l'organizzatore è responsabile di accedere al sito e avviare il rimborso collettivo, versando nel contratto la somma dei prezzi dei biglietti iniziali (commissioni escluse) tramite `avviaRimborsiCollettivi(idEvento)`. TicketOnChain non custodisce quegli incassi e non anticipa denaro. Se l'organizzatore non versa i fondi, il rimborso on-chain non può essere eseguito. L'elaborazione prosegue a lotti tecnici con `processaRimborsiEvento`; l'interfaccia deve continuare i lotti automaticamente e gli acquirenti non devono presentare richieste. Se il pagamento diretto a un wallet fallisce, l'importo viene accreditato nel suo saldo prelevabile.
 
-La scelta è registrata nell'evento e non può essere cambiata con le funzioni attuali. Non è previsto un rimborso automatico per semplice ripensamento dell'acquirente. L'interfaccia deve mostrare la politica prima dell'acquisto e mantenere una dicitura coerente:
+La scelta è registrata nell'evento e non può essere cambiata con le funzioni attuali. In caso di annullamento, viene rimborsato soltanto il prezzo del biglietto al possessore economico attuale; la commissione TOC pagata in fase di acquisto non viene mai rimborsata. Non è previsto un rimborso automatico per semplice ripensamento dell'acquirente. L'interfaccia deve mostrare la politica prima dell'acquisto e mantenere una dicitura coerente:
 
 **FondiBloccati:** «In caso di annullamento, il contratto avvia automaticamente il rimborso del prezzo del biglietto. Gli incassi sono custoditi nel contratto fino all'inizio dell'evento.»
 
@@ -72,9 +72,22 @@ La scelta è registrata nell'evento e non può essere cambiata con le funzioni a
 
 La piattaforma non anticipa fondi propri. La dicitura informativa non elimina eventuali obblighi legali dell'organizzatore o della piattaforma: condizioni d'uso e comunicazioni agli acquirenti devono essere verificate rispetto alla normativa applicabile.
 
-La modalità `FondiBloccati` riguarda gli incassi iniziali; le somme pagate per le rivendite vengono accreditate al venditore come saldo prelevabile. La cancellazione con `IncassiAnticipati` è consentita fino alla fine prevista dell'evento; dopo l'annullamento l'organizzatore può avviare i rimborsi anche se l'evento è già iniziato. Con `FondiBloccati`, l'annullamento resta consentito solo prima dell'inizio, perché gli incassi possono essere sbloccati da quel momento. La suite Foundry copre acquisti, rivendite, annullamenti, rimborsi, permessi, pause, prelievi, test fuzz, scenari avversariali e invarianti; resta una suite di regressione, non un audit indipendente.
+La modalità `FondiBloccati` riguarda il prezzo dei biglietti iniziali; le somme pagate per le rivendite vengono accreditate al venditore come saldo prelevabile per l'intero prezzo del biglietto. Anche sulla rivendita la commissione TOC è pagata in aggiunta dall'acquirente, è resa subito disponibile alla piattaforma e non viene mai rimborsata. La cancellazione con `IncassiAnticipati` è consentita fino alla fine prevista dell'evento; dopo l'annullamento l'organizzatore può avviare i rimborsi anche se l'evento è già iniziato. Con `FondiBloccati`, l'annullamento resta consentito solo prima dell'inizio, perché gli incassi possono essere sbloccati da quel momento. La suite Foundry copre acquisti, rivendite, annullamenti, rimborsi, permessi, pause, prelievi, test fuzz, scenari avversariali e invarianti; resta una suite di regressione, non un audit indipendente.
 
 I nomi delle funzioni e i commenti del progetto sono in italiano per rendere il codice più comprensibile durante lo sviluppo.
+
+
+## Commissioni TOC e trasparenza del checkout
+
+La commissione predefinita di TicketOnChain è **1,5%** (`commissionePuntiBase = 150`, cioè 150 punti base). È applicata a ogni vendita iniziale e a ogni rivendita. L'acquirente la paga in aggiunta al prezzo del biglietto; non viene sottratta al compenso dell'organizzatore o del venditore.
+
+- **Vendita iniziale:** il venditore è l'organizzatore. Riceve il prezzo intero secondo la politica scelta (`FondiBloccati` oppure `IncassiAnticipati`). La commissione TOC viene contabilizzata immediatamente in `commissioniAccumulate`, indipendentemente dalla politica di rimborso.
+- **Rivendita:** l'acquirente paga prezzo del biglietto più commissione TOC; il venditore riceve il prezzo intero.
+- **Annullamento:** si rimborsa soltanto il prezzo del biglietto al possessore economico attuale. La commissione TOC non viene mai rimborsata. Con `IncassiAnticipati`, l'organizzatore deve finanziare i rimborsi per la somma dei prezzi dei biglietti iniziali, commissioni escluse.
+- **Prelievo commissioni:** l'importo diventa subito disponibile contabilmente alla piattaforma in `commissioniAccumulate`. Il trasferimento effettivo al wallet destinatario avviene quando l'amministratore chiama `prelevaCommissioni(destinatario)`; non viene effettuata una chiamata esterna al wallet della piattaforma durante ogni acquisto.
+- **Gas fee Ethereum:** non è una commissione TOC e non viene versata al contratto come parte del prezzo. È il costo della transazione pagato alla rete dal wallet che la invia. Il frontend deve mostrarne una stima separata, insieme al prezzo e alla commissione TOC, prima della conferma. La stima può cambiare prima che la transazione venga inclusa nella blockchain.
+
+Esempio con prezzo del biglietto di 50 €: prezzo 50,00 € + commissione TOC 0,75 € + gas fee Ethereum stimata separatamente. Il frontend deve mostrare queste voci prima della firma della transazione. Il valore della gas fee è una stima del wallet/rete, non un importo fisso garantito dal contratto.
 
 ## Sviluppo e controlli automatici
 
@@ -119,15 +132,15 @@ Questa sezione è un inventario pratico delle funzioni esposte dai contratti. Le
 | `contrattoBiglietti()` | Restituisce l'indirizzo del contratto NFT associato al mercato. |
 | `LIMITE_BIGLIETTI_PER_WALLET()` | Legge il limite cumulativo di acquisti per wallet e per evento: attualmente 6. |
 | `MASSIMO_RIMBORSI_PER_BATCH()` | Legge il limite massimo di biglietti elaborabili in un singolo lotto di rimborso: attualmente 20. |
-| `commissionePuntiBase()` | Legge la commissione corrente in punti base: 250 equivale al 2,5%. |
+| `commissionePuntiBase()` | Legge la commissione corrente in punti base: 150 equivale all'1,5% predefinito. L'amministratore può modificarla fino al 10%. |
 | `organizzatoriAutorizzati(indirizzo)` | Verifica se un indirizzo è autorizzato a creare eventi. |
 | `bigliettiAcquistatiPerWallet(idEvento, wallet)` | Legge quanti acquisti sono stati conteggiati per quel wallet e quell'evento. Il conteggio è cumulativo e non diminuisce dopo una rivendita. |
 | `saldiPrelevabili(indirizzo)` | Legge il saldo ETH prelevabile da un indirizzo, inclusi eventuali importi accreditati per rimborsi. |
 | `commissioniAccumulate()` | Legge le commissioni attualmente disponibili per il proprietario del mercato. |
-| `ricaviEventoBloccati(idEvento)` | Legge i ricavi netti ancora bloccati per un evento con politica `FondiBloccati`. |
+| `ricaviEventoBloccati(idEvento)` | Legge il prezzo totale dei biglietti ancora bloccato per un evento con politica `FondiBloccati`, esclusa la commissione TOC. |
 | `fondiRimborsoEvento(idEvento)` | Legge i fondi attualmente destinati ai rimborsi dell'evento. |
-| `totaleVenditeEvento(idEvento)` | Legge il totale lordo incassato dalle vendite iniziali. |
-| `commissioniEventoBloccate(idEvento)` | Legge le commissioni iniziali ancora bloccate per l'evento. |
+| `totaleVenditeEvento(idEvento)` | Legge la somma dei prezzi dei biglietti venduti inizialmente, escluse le commissioni TOC. |
+ 
 | `commissioneAcquistoOriginale(idBiglietto)` | Legge la commissione registrata al momento dell'acquisto iniziale di quel biglietto. |
 | `prezzoAcquistoOriginale(idBiglietto)` | Legge il prezzo originario del biglietto, usato anche per vincolare il prezzo di rivendita e calcolare il rimborso. |
 | `eventoDelBiglietto(idBiglietto)` | Restituisce l'evento a cui appartiene il biglietto. |
@@ -149,12 +162,12 @@ Questa sezione è un inventario pratico delle funzioni esposte dai contratti. Le
 | `creaEvento(nomeEvento, uriMetadatiBase, prezzoBiglietto, quantitaMassima, timestampInizio, timestampFine, politicaRimborso)` | Un organizzatore autorizzato crea un evento. Il prezzo è espresso in wei; le date sono timestamp Unix in secondi; la politica è `FondiBloccati = 0` oppure `IncassiAnticipati = 1`. L'URI base deve terminare con `/`. |
 | `aggiornaEvento(idEvento, nuovoPrezzo, attivo)` | L'organizzatore modifica il prezzo o sospende le vendite prima dell'inizio dell'evento. |
 | `impostaRivendita(idEvento, attiva)` | L'organizzatore abilita o disabilita il mercato secondario prima dell'inizio. |
-| `acquistaBiglietto(idEvento)` | Acquista un biglietto iniziale inviando esattamente il prezzo richiesto in ETH. |
+| `acquistaBiglietto(idEvento)` | Acquista un biglietto iniziale inviando prezzo del biglietto più commissione TOC (attualmente 1,5%). La commissione viene contabilizzata subito separatamente dal prezzo. |
 | `mettiInRivendita(idBiglietto, prezzoRichiesto)` | Il proprietario pubblica un annuncio al prezzo originario. Prima deve autorizzare il contratto di mercato sul contratto NFT con `approve` oppure `setApprovalForAll`. |
 | `annullaRivendita(idBiglietto)` | Il venditore ritira un annuncio attivo e recupera il proprio NFT. |
-| `acquistaRivendita(idBiglietto)` | Acquista un biglietto già messo in rivendita, pagando il prezzo esatto dell'annuncio. |
+| `acquistaRivendita(idBiglietto)` | Acquista un biglietto in rivendita pagando prezzo dell'annuncio più commissione TOC (attualmente 1,5%). Il venditore riceve il prezzo intero. |
 | `prelevaSaldo()` | L'utente preleva sul proprio wallet il saldo ETH disponibile a suo nome. È lo stesso meccanismo usato per incassi da rivendita e accrediti di rimborso. |
-| `prelevaRicaviEvento(idEvento)` | L'organizzatore preleva i ricavi netti bloccati, dopo l'inizio dell'evento, solo se è stata scelta la politica `FondiBloccati` e l'evento non è annullato. |
+| `prelevaRicaviEvento(idEvento)` | L'organizzatore preleva il prezzo intero dei biglietti bloccato, dopo l'inizio dell'evento, solo se è stata scelta la politica `FondiBloccati` e l'evento non è annullato. |
 | `impostaValidatoreIngresso(idEvento, validatore, autorizzato)` | L'organizzatore autorizza o revoca un addetto alla convalida degli ingressi. |
 | `validaIngresso(idBiglietto)` | L'organizzatore o un validatore autorizzato registra l'ingresso. È consentito solo durante la finestra temporale dell'evento; un biglietto può essere usato una sola volta. |
 | `annullaEvento(idEvento)` | L'organizzatore annulla l'evento. Con `FondiBloccati` avvia automaticamente i rimborsi; con `IncassiAnticipati` l'organizzatore deve finanziare separatamente il rimborso collettivo. |
