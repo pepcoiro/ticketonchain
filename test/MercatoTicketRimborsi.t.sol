@@ -118,7 +118,10 @@ contract MercatoTicketRimborsiTest is Test {
 
         assertEq(alice.balance, saldoPrima);
         assertTrue(mercato.bigliettiRimborsati(1));
-        assertFalse(mercato.rivendite(1).attivo);
+        (address venditore, uint256 prezzoRivendita, bool annuncioAttivo) = mercato.rivendite(1);
+        assertEq(venditore, address(0));
+        assertEq(prezzoRivendita, 0);
+        assertFalse(annuncioAttivo);
         vm.expectRevert();
         nft.ownerOf(1);
     }
