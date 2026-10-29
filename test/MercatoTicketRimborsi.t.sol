@@ -83,12 +83,12 @@ contract MercatoTicketRimborsiTest is Test {
         mercato.annullaEvento(idEvento);
 
         assertFalse(mercato.bigliettiRimborsati(1));
-        assertEq(alice.balance, saldoPrima - 1 ether);
+        assertEq(alice.balance, saldoPrima - 1.015 ether);
 
         mercato.avviaRimborsiCollettivi{value: 1 ether}(idEvento);
 
         assertTrue(mercato.bigliettiRimborsati(1));
-        assertEq(alice.balance, saldoPrima - 1 ether);
+        assertEq(alice.balance, saldoPrima - 1.015 ether);
         assertEq(mercato.saldiPrelevabili(alice), 1 ether);
         assertEq(mercato.fondiRimborsoEvento(idEvento), 0);
     }
@@ -135,7 +135,7 @@ contract MercatoTicketRimborsiTest is Test {
 
         mercato.annullaEvento(idEvento);
 
-        assertEq(alice.balance, saldoPrima - 1 ether);
+        assertEq(alice.balance, saldoPrima - 1.015 ether);
         assertEq(mercato.saldiPrelevabili(alice), 1 ether);
         assertTrue(mercato.bigliettiRimborsati(1));
         (address venditore, uint256 prezzoRivendita, bool annuncioAttivo) = mercato.rivendite(1);
