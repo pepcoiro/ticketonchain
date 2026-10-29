@@ -22,6 +22,18 @@ import {TicketOnChain} from "./TicketOnChain.sol";
 contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiver {
     using Strings for uint256;
 
+    /// @notice Ritardo amministrativo minimo per azioni governative critiche.
+    /// @dev È un meccanismo di sicurezza che riduce il rischio di azioni impulsive o maliziose.
+    uint256 public constant GOVERNANCE_DELAY = 12 hours;
+
+    /// @notice Timestamp dell'ultima azione governativa critica eseguita.
+    uint256 public lastGovernanceAction;
+
+    /// @notice Destinatario dedicato alle commissioni del mercato.
+    /// @dev Il wallet del proprietario mantiene la governance, ma la distribuzione
+    ///      delle commissioni può essere separata da chi gestisce il contratto.
+    address public feeRecipient;
+
     /// @notice Contratto NFT utilizzato per creare e trasferire i biglietti.
     TicketOnChain public immutable contrattoBiglietti;
 
@@ -80,7 +92,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     /// @dev È informativa e non viene mai inclusa nel rimborso del biglietto.
     mapping(uint256 idBiglietto => uint256 importo) public commissioneAcquistoOriginale;
 
-     /// @notice Indica se il biglietto è già stato rimborsato.
+    /// @notice Indica se il biglietto è già stato rimborsato.
     mapping(uint256 idBiglietto => bool rimborsato) public bigliettiRimborsati;
 
     /// @notice Politica economica scelta dall'organizzatore alla creazione dell'evento.
@@ -161,6 +173,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     );
     event SaldoPrelevato(address indexed beneficiario, uint256 importo);
     event CommissioniPrelevate(address indexed destinatario, uint256 importo);
+    event FeeRecipientImpostato(address indexed destinatario);
     event CommissioneAggiornata(uint256 vecchiaCommissione, uint256 nuovaCommissione);
     event OrganizzatoreAutorizzato(address indexed organizzatore, bool autorizzato);
     event RimborsoEseguito(uint256 indexed idEvento, uint256 indexed idBiglietto, address indexed destinatario, uint256 importo);
@@ -175,11 +188,21 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     event IngressoValidato(uint256 indexed idEvento, uint256 indexed idBiglietto, address indexed validatore);
     event ValidatoreIngressoImpostato(uint256 indexed idEvento, address indexed validatore, bool autorizzato);
 
+    modifier onlyOwnerWithGovernanceDelay() {
+        require(msg.sender == owner(), "MercatoTicket: solo proprietario");
+        require(
+            block.timestamp >= lastGovernanceAction + GOVERNANCE_DELAY,
+            "MercatoTicket: azione in attesa di governance delay"
+        );
+        _;
+        lastGovernanceAction = block.timestamp;
+    }
+
     /**
-     * @notice Conferma la ricezione dei biglietti trasferiti in custodia al mercato.
-     * @dev ERC-721 richiede questa funzione quando si usa safeTransferFrom verso
-     *      un contratto. Accettiamo soltanto NFT provenienti dal nostro contratto.
-     */
+      * @notice Conferma la ricezione dei biglietti trasferiti in custodia al mercato.
+      * @dev ERC-721 richiede questa funzione quando si usa safeTransferFrom verso
+      *      un contratto. Accettiamo soltanto NFT provenienti dal nostro contratto.
+      */
     function onERC721Received(
         address,
         address,
@@ -200,6 +223,8 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         );
         contrattoBiglietti = TicketOnChain(indirizzoContrattoBiglietti);
         organizzatoriAutorizzati[msg.sender] = true;
+        feeRecipient = msg.sender;
+        lastGovernanceAction = block.timestamp - GOVERNANCE_DELAY;
         emit OrganizzatoreAutorizzato(msg.sender, true);
     }
 
@@ -209,42 +234,53 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Sospende temporaneamente le operazioni di vendita in caso di emergenza.
-     * @dev Non blocca prelievi, convalida ingressi o annullamento degli annunci.
-     */
-    function sospendiMercato() external onlyOwner {
+      * @notice Sospende temporaneamente le operazioni di vendita in caso di emergenza.
+      * @dev Non blocca prelievi, convalida ingressi o annullamento degli annunci.
+      */
+    function sospendiMercato() external onlyOwnerWithGovernanceDelay {
         _pause();
     }
 
     /**
-     * @notice Riattiva le operazioni di vendita dopo la risoluzione del problema.
-     */
-    function riattivaMercato() external onlyOwner {
+      * @notice Riattiva le operazioni di vendita dopo la risoluzione del problema.
+      */
+    function riattivaMercato() external onlyOwnerWithGovernanceDelay {
         _unpause();
     }
 
     /**
-     * @notice Autorizza o revoca un organizzatore.
-     * @dev Solo il proprietario del mercato può gestire l'elenco degli organizzatori.
-     */
-    function impostaOrganizzatore(address organizzatore, bool autorizzato) external onlyOwner {
+      * @notice Imposta un destinatario dedicato alle commissioni del mercato.
+      * @dev Il wallet del proprietario mantiene la governance, ma la distribuzione
+      *      delle commissioni può essere separata da chi gestisce il contratto.
+      */
+    function impostaDestinatarioCommissioni(address destinatario) external onlyOwnerWithGovernanceDelay {
+        require(destinatario != address(0), "MercatoTicket: destinatario non valido");
+        feeRecipient = destinatario;
+        emit FeeRecipientImpostato(destinatario);
+    }
+
+    /**
+      * @notice Autorizza o revoca un organizzatore.
+      * @dev Solo il proprietario del mercato può gestire l'elenco degli organizzatori.
+      */
+    function impostaOrganizzatore(address organizzatore, bool autorizzato) external onlyOwnerWithGovernanceDelay {
         require(organizzatore != address(0), "MercatoTicket: organizzatore non valido");
         organizzatoriAutorizzati[organizzatore] = autorizzato;
         emit OrganizzatoreAutorizzato(organizzatore, autorizzato);
     }
 
     /**
-     * @notice Registra un evento e mette in vendita i suoi biglietti.
-     * @param nomeEvento Nome leggibile dell'evento.
-     * @param uriMetadatiBase URI che termina con "/" e contiene i file JSON dei biglietti.
-     *        Per esempio, "ipfs://CID/": il primo biglietto di ogni evento usa "ipfs://CID/1.json".
-     *        Il progressivo dei metadati è indipendente dal token ID globale.
-     * @param prezzoBiglietto Prezzo di un biglietto in ETH (espresso in wei).
-     * @param quantitaMassima Numero totale di biglietti emettibili per l'evento.
-     * @param timestampInizio Data e ora di inizio dell'evento come timestamp Unix in secondi.
-     * @param timestampFine Data e ora di fine dell'evento come timestamp Unix in secondi.
-     * @param politicaRimborso FondiBloccati oppure IncassiAnticipati, scelta dall'organizzatore.
-     */
+      * @notice Registra un evento e mette in vendita i suoi biglietti.
+      * @param nomeEvento Nome leggibile dell'evento.
+      * @param uriMetadatiBase URI che termina con "/" e contiene i file JSON dei biglietti.
+      *        Per esempio, "ipfs://CID/": il primo biglietto di ogni evento usa "ipfs://CID/1.json".
+      *        Il progressivo dei metadati è indipendente dal token ID globale.
+      * @param prezzoBiglietto Prezzo di un biglietto in ETH (espresso in wei).
+      * @param quantitaMassima Numero totale di biglietti emettibili per l'evento.
+      * @param timestampInizio Data e ora di inizio dell'evento come timestamp Unix in secondi.
+      * @param timestampFine Data e ora di fine dell'evento come timestamp Unix in secondi.
+      * @param politicaRimborso FondiBloccati oppure IncassiAnticipati, scelta dall'organizzatore.
+      */
     function creaEvento(
         string calldata nomeEvento,
         string calldata uriMetadatiBase,
@@ -298,9 +334,9 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Permette all'organizzatore di modificare il prezzo o sospendere le vendite.
-     * @dev Non permette di riattivare un evento dopo che tutti i biglietti sono stati venduti.
-     */
+      * @notice Permette all'organizzatore di modificare il prezzo o sospendere le vendite.
+      * @dev Non permette di riattivare un evento dopo che tutti i biglietti sono stati venduti.
+      */
     function aggiornaEvento(
         uint256 idEvento,
         uint256 nuovoPrezzo,
@@ -323,9 +359,9 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Abilita o disabilita separatamente il mercato secondario di un evento.
-     * @dev Disabilitare la rivendita non impedisce al venditore di annullare un annuncio già attivo.
-     */
+      * @notice Abilita o disabilita separatamente il mercato secondario di un evento.
+      * @dev Disabilitare la rivendita non impedisce al venditore di annullare un annuncio già attivo.
+      */
     function impostaRivendita(uint256 idEvento, bool attiva) external {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
@@ -335,11 +371,11 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Annulla definitivamente un evento.
-     * @dev L'annullamento blocca vendite, rivendite e convalida ingressi.
-     *      Con FondiBloccati i possessori possono richiedere il rimborso dai fondi
-     *      custoditi. Con IncassiAnticipati il contratto non garantisce rimborsi on-chain.
-     */
+      * @notice Annulla definitivamente un evento.
+      * @dev L'annullamento blocca vendite, rivendite e convalida ingressi.
+      *      Con FondiBloccati i possessori possono richiedere il rimborso dai fondi
+      *      custoditi. Con IncassiAnticipati il contratto non garantisce rimborsi on-chain.
+      */
     function annullaEvento(uint256 idEvento) external nonReentrant {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
@@ -357,18 +393,17 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         emit EventoAnnullato(idEvento, msg.sender);
 
         if (evento.politicaRimborso == PoliticaRimborso.FondiBloccati) {
-            // I fondi sono già custoditi: l'annullamento avvia automaticamente i rimborsi.
             rimborsiCollettiviAvviati[idEvento] = true;
             _processaRimborsiEvento(idEvento, MASSIMO_RIMBORSI_PER_BATCH);
         }
     }
 
     /**
-     * @notice Acquista un biglietto nuovo pagando prezzo e commissione TOC in ETH.
-     * @dev Prezzo e commissione sono contabilizzati separatamente; la commissione
-     *      diventa subito disponibile alla piattaforma. La gas fee è pagata dal wallet
-     *      alla rete e non è inclusa in msg.value.
-     */
+      * @notice Acquista un biglietto nuovo pagando prezzo e commissione TOC in ETH.
+      * @dev Prezzo e commissione sono contabilizzati separatamente; la commissione
+      *      diventa subito disponibile alla piattaforma. La gas fee è pagata dal wallet
+      *      alla rete e non è inclusa in msg.value.
+      */
     function acquistaBiglietto(uint256 idEvento) external payable whenNotPaused nonReentrant {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore != address(0), "MercatoTicket: evento inesistente");
@@ -390,7 +425,6 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         _bigliettiEvento[idEvento].push(idBiglietto);
         totaleVenditeEvento[idEvento] += evento.prezzo;
 
-        // Registra prima l'appartenenza del biglietto, poi crea l'NFT.
         eventoDelBiglietto[idBiglietto] = idEvento;
         prezzoAcquistoOriginale[idBiglietto] = evento.prezzo;
         uint256 numeroBigliettoEvento = evento.bigliettiVenduti;
@@ -399,32 +433,27 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
             numeroBigliettoEvento.toString(),
             ".json"
         );
-        // Aggiorna prima lo stato e i saldi, prima della chiamata esterna al contratto NFT.
         commissioneAcquistoOriginale[idBiglietto] = commissione;
-        // La commissione è separata dal prezzo del biglietto e diventa subito
-        // disponibile alla piattaforma, indipendentemente dalla politica di rimborso.
         commissioniAccumulate += commissione;
         if (evento.politicaRimborso == PoliticaRimborso.FondiBloccati) {
             ricaviEventoBloccati[idEvento] += evento.prezzo;
             fondiRimborsoEvento[idEvento] += evento.prezzo;
         } else {
-            // L'organizzatore riceve il prezzo intero del biglietto, senza la commissione TOC.
             saldiPrelevabili[evento.organizzatore] += evento.prezzo;
         }
 
-        // Se la creazione dell'NFT fallisce, l'intera transazione viene annullata.
         contrattoBiglietti.creaBiglietto(msg.sender, idBiglietto, uriBiglietto);
 
         emit BigliettoAcquistato(idEvento, idBiglietto, msg.sender, evento.prezzo);
     }
 
     /**
-     * @notice Mette in rivendita un biglietto già acquistato esclusivamente al prezzo originario.
-     * @dev Il prezzo di rivendita non può essere superiore né inferiore al prezzo pagato inizialmente.
-     *      Il venditore deve prima autorizzare questo contratto NFT con
-     *      approve() oppure setApprovalForAll(). Il biglietto viene custodito
-     *      dal mercato fino all'acquisto o all'annullamento dell'annuncio.
-     */
+      * @notice Mette in rivendita un biglietto già acquistato esclusivamente al prezzo originario.
+      * @dev Il prezzo di rivendita non può essere superiore né inferiore al prezzo pagato inizialmente.
+      *      Il venditore deve prima autorizzare questo contratto NFT con
+      *      approve() oppure setApprovalForAll(). Il biglietto viene custodito
+      *      dal mercato fino all'acquisto o all'annullamento dell'annuncio.
+      */
     function mettiInRivendita(
         uint256 idBiglietto,
         uint256 prezzoRichiesto
@@ -446,7 +475,6 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         require(!ingressiUtilizzati[idBiglietto], "MercatoTicket: biglietto gia utilizzato");
         require(!rivendite[idBiglietto].attivo, "MercatoTicket: annuncio gia attivo");
 
-        // Il trasferimento fallisce se il proprietario non ha autorizzato il mercato.
         contrattoBiglietti.safeTransferFrom(msg.sender, address(this), idBiglietto);
 
         rivendite[idBiglietto] = AnnuncioRivendita({
@@ -459,8 +487,8 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Annulla un annuncio e restituisce il biglietto al venditore.
-     */
+      * @notice Annulla un annuncio e restituisce il biglietto al venditore.
+      */
     function annullaRivendita(uint256 idBiglietto) external nonReentrant {
         AnnuncioRivendita memory annuncio = rivendite[idBiglietto];
         require(annuncio.attivo, "MercatoTicket: annuncio non attivo");
@@ -473,9 +501,9 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Acquista un biglietto custodito dal mercato per una rivendita.
-     * @dev L'acquirente paga prezzo più commissione; il venditore riceve il prezzo intero.
-     */
+      * @notice Acquista un biglietto custodito dal mercato per una rivendita.
+      * @dev L'acquirente paga prezzo più commissione; il venditore riceve il prezzo intero.
+      */
     function acquistaRivendita(uint256 idBiglietto) external payable whenNotPaused nonReentrant {
         AnnuncioRivendita memory annuncio = rivendite[idBiglietto];
         require(annuncio.attivo, "MercatoTicket: annuncio non attivo");
@@ -509,9 +537,9 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Autorizza o revoca un addetto alla convalida degli ingressi.
-     * @dev Solo l'organizzatore dell'evento può gestire i propri validatori.
-     */
+      * @notice Autorizza o revoca un addetto alla convalida degli ingressi.
+      * @dev Solo l'organizzatore dell'evento può gestire i propri validatori.
+      */
     function impostaValidatoreIngresso(uint256 idEvento, address validatore, bool autorizzato) external {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
@@ -523,11 +551,11 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Registra l'ingresso di un biglietto all'evento.
-     * @dev Possono convalidare l'organizzatore e i validatori autorizzati.
-     *      La convalida è ammessa soltanto nella finestra temporale dell'evento.
-     *      Un biglietto in rivendita o già utilizzato non può essere convalidato.
-     */
+      * @notice Registra l'ingresso di un biglietto all'evento.
+      * @dev Possono convalidare l'organizzatore e i validatori autorizzati.
+      *      La convalida è ammessa soltanto nella finestra temporale dell'evento.
+      *      Un biglietto in rivendita o già utilizzato non può essere convalidato.
+      */
     function validaIngresso(uint256 idBiglietto) external {
         uint256 idEvento = eventoDelBiglietto[idBiglietto];
         require(idEvento != 0, "MercatoTicket: biglietto non riconosciuto");
@@ -551,11 +579,11 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @dev Registra l'acquisto nel limite cumulativo per wallet ed evento.
-     *      È un controllo temporaneo: non impedisce a una stessa persona di usare
-     *      wallet diversi. L'integrazione di un sistema d'identità verrà aggiunta
-     *      in una fase successiva.
-     */
+      * @dev Registra l'acquisto nel limite cumulativo per wallet ed evento.
+      *      È un controllo temporaneo: non impedisce a una stessa persona di usare
+      *      wallet diversi. L'integrazione di un sistema d'identità verrà aggiunta
+      *      in una fase successiva.
+      */
     function _registraAcquistoWallet(
         uint256 idEvento,
         address acquirente
@@ -576,9 +604,9 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Preleva il saldo accumulato da vendite iniziali o rivendite.
-     * @dev Il saldo viene azzerato prima dell'invio per impedire doppi prelievi.
-     */
+      * @notice Preleva il saldo accumulato da vendite iniziali o rivendite.
+      * @dev Il saldo viene azzerato prima dell'invio per impedire doppi prelievi.
+      */
     function prelevaRicaviEvento(uint256 idEvento) external nonReentrant {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
@@ -590,17 +618,17 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         require(importo > 0, "MercatoTicket: nessun ricavo da prelevare");
         ricaviEventoBloccati[idEvento] = 0;
         saldiPrelevabili[msg.sender] += importo;
-         fondiRimborsoEvento[idEvento] = 0;
+        fondiRimborsoEvento[idEvento] = 0;
 
         emit RicaviEventoSbloccati(idEvento, msg.sender, importo);
     }
 
     /**
-     * @notice L'organizzatore finanzia e avvia i rimborsi collettivi per un evento
-     *         annullato che ha scelto la modalità IncassiAnticipati.
-     * @dev Deve versare l'intero importo lordo venduto; nessun acquirente deve
-     *      presentare una richiesta individuale. La procedura viene elaborata a lotti.
-     */
+      * @notice L'organizzatore finanzia e avvia i rimborsi collettivi per un evento
+      *         annullato che ha scelto la modalità IncassiAnticipati.
+      * @dev Deve versare l'intero importo lordo venduto; nessun acquirente deve
+      *      presentare una richiesta individuale. La procedura viene elaborata a lotti.
+      */
     function avviaRimborsiCollettivi(uint256 idEvento) external payable nonReentrant {
         Evento storage evento = eventi[idEvento];
         require(evento.organizzatore == msg.sender, "MercatoTicket: non sei organizzatore");
@@ -616,10 +644,10 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Prosegue i rimborsi collettivi già avviati, senza richiedere azioni agli acquirenti.
-     * @dev È permissionless per consentire all'interfaccia o a un servizio automatico
-     *      di elaborare più lotti senza una transazione illimitata per eventi grandi.
-     */
+      * @notice Prosegue i rimborsi collettivi già avviati, senza richiedere azioni agli acquirenti.
+      * @dev È permissionless per consentire all'interfaccia o a un servizio automatico
+      *      di elaborare più lotti senza una transazione illimitata per eventi grandi.
+      */
     function processaRimborsiEvento(uint256 idEvento, uint256 quantita) external nonReentrant {
         require(rimborsiCollettiviAvviati[idEvento], "MercatoTicket: rimborsi non avviati");
         require(quantita > 0 && quantita <= MASSIMO_RIMBORSI_PER_BATCH, "MercatoTicket: dimensione lotto non valida");
@@ -658,8 +686,6 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
 
             contrattoBiglietti.distruggiBiglietto(idBiglietto);
 
-            // Pull payment: nessuna chiamata esterna al destinatario durante il rimborso.
-            // Evita griefing tramite consumo di gas e impedisce callback/rientranza dal wallet.
             saldiPrelevabili[destinatario] += importo;
             emit RimborsoEseguito(idEvento, idBiglietto, destinatario, importo);
         }
@@ -669,20 +695,16 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Restituisce il numero di biglietti ancora da elaborare per un evento.
-     */
+      * @notice Restituisce il numero di biglietti ancora da elaborare per un evento.
+      */
     function bigliettiDaRimborsare(uint256 idEvento) external view returns (uint256) {
         return _bigliettiEvento[idEvento].length - cursoreRimborsiEvento[idEvento];
     }
 
-    /*
-     * Non esiste una funzione di rimborso individuale: i rimborsi sono collettivi.
-     */
-
     /**
-     * @notice Preleva il saldo disponibile del chiamante.
-     * @dev Il saldo viene azzerato prima dell'invio per impedire doppi prelievi.
-     */
+      * @notice Preleva il saldo disponibile del chiamante.
+      * @dev Il saldo viene azzerato prima dell'invio per impedire doppi prelievi.
+      */
     function prelevaSaldo() external nonReentrant {
         uint256 importo = saldiPrelevabili[msg.sender];
         require(importo > 0, "MercatoTicket: saldo vuoto");
@@ -695,10 +717,11 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Preleva le commissioni accumulate verso un indirizzo scelto.
-     * @dev Solo il proprietario del mercato può prelevare le commissioni.
-     */
-    function prelevaCommissioni(address destinatario) external onlyOwner nonReentrant {
+      * @notice Preleva le commissioni accumulate verso un indirizzo scelto.
+      * @dev Funzione di compatibilità: il proprietario mantiene la governance,
+      *      ma il destinatario può essere separato tramite impostaDestinatarioCommissioni().
+      */
+    function prelevaCommissioni(address destinatario) external onlyOwnerWithGovernanceDelay nonReentrant {
         require(destinatario != address(0), "MercatoTicket: destinatario non valido");
         uint256 importo = commissioniAccumulate;
         require(importo > 0, "MercatoTicket: nessuna commissione");
@@ -711,10 +734,26 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-     * @notice Aggiorna la commissione del mercato.
-     * @dev Limite massimo del 10% per evitare impostazioni eccessive accidentali.
-     */
-    function impostaCommissione(uint256 nuovaCommissionePuntiBase) external onlyOwner {
+      * @notice Preleva le commissioni accumulate verso il destinatario dedicato.
+      * @dev Permette di separare il wallet delle commissioni dal wallet amministrativo.
+      */
+    function prelevaCommissioni() external nonReentrant {
+        require(msg.sender == feeRecipient, "MercatoTicket: solo destinatario commissioni");
+        uint256 importo = commissioniAccumulate;
+        require(importo > 0, "MercatoTicket: nessuna commissione");
+
+        commissioniAccumulate = 0;
+        (bool riuscito, ) = payable(msg.sender).call{value: importo}("");
+        require(riuscito, "MercatoTicket: trasferimento ETH fallito");
+
+        emit CommissioniPrelevate(msg.sender, importo);
+    }
+
+    /**
+      * @notice Aggiorna la commissione del mercato.
+      * @dev Limite massimo del 10% per evitare impostazioni eccessive accidentali.
+      */
+    function impostaCommissione(uint256 nuovaCommissionePuntiBase) external onlyOwnerWithGovernanceDelay {
         require(nuovaCommissionePuntiBase <= 1_000, "MercatoTicket: commissione oltre il 10%");
 
         uint256 vecchiaCommissione = commissionePuntiBase;

@@ -82,8 +82,21 @@ contract MercatoTicketPermessiTest is Test {
 
         mercato.impostaOrganizzatore(bob, true);
         assertTrue(mercato.organizzatoriAutorizzati(bob));
+
+        vm.warp(block.timestamp + 13 hours);
         mercato.impostaOrganizzatore(bob, false);
         assertFalse(mercato.organizzatoriAutorizzati(bob));
+    }
+
+    function testGovernanceDelayApplicaAzioneCritica() public {
+        mercato.impostaOrganizzatore(bob, true);
+
+        vm.expectRevert("MercatoTicket: azione in attesa di governance delay");
+        mercato.impostaOrganizzatore(alice, true);
+
+        vm.warp(block.timestamp + 13 hours);
+        mercato.impostaOrganizzatore(alice, true);
+        assertTrue(mercato.organizzatoriAutorizzati(alice));
     }
 
     function testOrganizzatoreNonAutorizzatoNonPuoCreareEvento() public {
@@ -131,6 +144,8 @@ contract MercatoTicketPermessiTest is Test {
         mercato.sospendiMercato();
         vm.expectRevert();
         _evento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1 ether, 1);
+
+        vm.warp(block.timestamp + 13 hours);
         mercato.riattivaMercato();
         assertEq(_evento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1 ether, 1), 1);
     }
@@ -229,6 +244,23 @@ contract MercatoTicketPermessiTest is Test {
         mercato.prelevaCommissioni(address(0));
         vm.expectRevert("MercatoTicket: nessuna commissione");
         mercato.prelevaCommissioni(bob);
+    }
+
+    function testFeeRecipientPrelevaCommissioni() public {
+        uint256 idEvento = _evento(MercatoTicket.PoliticaRimborso.IncassiAnticipati, 1 ether, 2);
+        vm.prank(alice);
+        mercato.acquistaBiglietto{value: 1.015 ether}(idEvento);
+
+        uint256 saldoPrima = bob.balance;
+        uint256 commissioniPrima = mercato.commissioniAccumulate();
+
+        mercato.impostaDestinatarioCommissioni(bob);
+
+        vm.prank(bob);
+        mercato.prelevaCommissioni();
+
+        assertEq(mercato.commissioniAccumulate(), 0);
+        assertEq(bob.balance, saldoPrima + commissioniPrima);
     }
 
     function testSoloProprietarioPuoCambiareCommissione() public {
