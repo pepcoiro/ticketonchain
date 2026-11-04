@@ -96,8 +96,11 @@ contract MercatoTicketPermessiTest is Test {
         mercato.impostaDestinatarioCommissioni(bob);
         assertEq(mercato.feeRecipient(), bob);
 
-        mercato.impostaCommissione(200);
-        assertEq(mercato.commissionePuntiBase(), 200);
+        // L'amministratore può ridurre la commissione, ma non aumentarla.
+        mercato.impostaCommissione(100);
+        assertEq(mercato.commissionePuntiBase(), 100);
+        vm.expectRevert("MercatoTicket: la commissione non puo aumentare");
+        mercato.impostaCommissione(101);
 
         mercato.sospendiMercato();
         assertTrue(mercato.paused());
@@ -268,13 +271,21 @@ contract MercatoTicketPermessiTest is Test {
         assertEq(bob.balance, saldoPrima + commissioniPrima);
     }
 
-    function testSoloProprietarioPuoCambiareCommissione() public {
+    function testSoloProprietarioPuoRidurreCommissione() public {
         vm.prank(alice);
         vm.expectRevert();
         mercato.impostaCommissione(100);
 
+        mercato.impostaCommissione(100);
+        assertEq(mercato.commissionePuntiBase(), 100);
+        vm.expectRevert("MercatoTicket: la commissione non puo aumentare");
+        mercato.impostaCommissione(150);
+        assertEq(mercato.commissionePuntiBase(), 100);
+
         mercato.impostaCommissione(0);
         assertEq(mercato.commissionePuntiBase(), 0);
+        vm.expectRevert("MercatoTicket: la commissione non puo aumentare");
+        mercato.impostaCommissione(1);
     }
 
     function testConfigurazioneValidatoreRifiutaIndirizzoNulloEOrganizzatoreErrato() public {
