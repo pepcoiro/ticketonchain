@@ -2,7 +2,7 @@
 
 TicketOnChain è un servizio **agent-native**: gli agenti AI usano i contratti Solidity esistenti tramite Model Context Protocol (MCP). Non è previsto un frontend web.
 
-## Strumenti disponibili (prima versione, sola lettura)
+## Strumenti disponibili
 
 - `search_events`
 - `get_event_details`
@@ -11,14 +11,14 @@ TicketOnChain è un servizio **agent-native**: gli agenti AI usano i contratti S
 - `search_resale_listings`
 - `quote_ticket_purchase`
 
-Il server interroga direttamente i contratti tramite viem e un RPC Ethereum. In questa prima versione non invia transazioni e non gestisce chiavi private. Le operazioni di scrittura richiederanno un flusso di autorizzazione e firma compatibile con wallet esterni.
+Le letture interrogano direttamente la blockchain. In questa prima versione non vengono inviate transazioni: le operazioni di scrittura richiederanno un flusso di autorizzazione e firma compatibile con wallet esterni.
 
 ## Requisiti e configurazione
 
 - Node.js 22+
 - npm
 - RPC Ethereum
-- Contratti TicketOnChain e MercatoTicket già distribuiti sulla stessa rete
+- Contratti TicketOnChain e MercatoTicket distribuiti sulla stessa rete
 
 Da Linux Mint, nella cartella del repository:
 
@@ -30,47 +30,70 @@ nano .env
 
 Imposta `RPC_URL`, `MARKET_ADDRESS` e `NFT_ADDRESS`. Per i primi test usa Sepolia e gli indirizzi effettivamente distribuiti su Sepolia: gli indirizzi di un'altra rete non funzionano.
 
-Installa e avvia:
+Installa e verifica:
 
 ```bash
 npm install
 npm run check
+```
+
+## Test locale con MCP Inspector (stdio)
+
+Avvia:
+
+```bash
 npm start
 ```
 
-Il server usa stdio: il processo resta in attesa di un client MCP. I log sono scritti su stderr, stdout è riservato al protocollo.
-
-## Test con MCP Inspector
-
-Apri un secondo terminale:
+In un secondo terminale:
 
 ```bash
-cd mcp
 npm run inspect
 ```
 
-Apri l'indirizzo locale mostrato da Inspector, premi **Connect** e vai nella scheda **Tools**. Prova:
+Apri l'indirizzo mostrato da Inspector, premi **Connect** e vai in **Tools**. Prova:
 1. `search_events` con `limit=10`;
 2. `get_event_details` con un ID restituito;
-3. `quote_ticket_purchase` con un ID evento e, facoltativamente, un wallet Sepolia;
+3. `get_ticket_details` con un ID di biglietto esistente;
 4. `get_wallet_overview` con un indirizzo pubblico;
-5. `search_resale_listings`.
+5. `search_resale_listings`;
+6. `quote_ticket_purchase` con l'ID di un evento e, facoltativamente, un wallet di test.
 
-Non serve un wallet per provare gli strumenti di lettura. Per la quotazione, il wallet è facoltativo e serve solo a verificare il limite cumulativo per indirizzo.
+Non serve un wallet per provare gli strumenti di consultazione.
 
-## Collegamento a un agente
+## Collegare un agente tramite stdio
 
 Configura il client MCP dell'agente per avviare:
 - comando: `node`;
 - argomento: percorso assoluto a `mcp/src/server.js`;
 - directory di lavoro: `mcp`;
-- variabili d'ambiente: quelle del file `.env`.
+- variabili d'ambiente: quelle definite nel file `.env`.
 
 La configurazione specifica cambia tra ChatGPT, Claude, IDE e altri host; il server espone strumenti MCP standard e non dipende dal modello AI.
 
+## Streamable HTTP per client remoti
+
+Per provare HTTP in locale, modifica `.env`:
+
+```env
+MCP_TRANSPORT=http
+MCP_HOST=127.0.0.1
+MCP_PORT=3333
+```
+
+Avvia `npm start`. Endpoint MCP: `http://127.0.0.1:3333/mcp`.
+
+Per un endpoint accessibile da Internet:
+- imposta `MCP_HOST=0.0.0.0`;
+- imposta `MCP_AUTH_TOKEN` con almeno 32 caratteri casuali;
+- termina HTTPS su un reverse proxy;
+- non esporre il server senza autenticazione.
+
+Il bearer token è una protezione iniziale per test e deploy privati, non un sistema di identità per utenti finali. Prima di un servizio pubblico serve OAuth 2.1, autorizzazione per utente, rate limiting e logging.
+
 ## Limiti noti
 
-- Non esegue deploy e non sceglie automaticamente la rete.
+- Non effettua deploy e non sceglie automaticamente la rete.
 - ERC-721 non implementa ERC721Enumerable: il wallet overview mostra il conteggio, non gli ID posseduti.
 - Ricerca eventi e rivendite usa ID progressivi e rispetta `MCP_MAX_SCAN`.
 - Le scritture (creazione eventi, acquisto, rivendita, convalida, prelievi e rimborsi) saranno aggiunte dopo aver definito l'autorizzazione del wallet dell'utente.
@@ -81,7 +104,7 @@ La configurazione specifica cambia tra ChatGPT, Claude, IDE e altri host; il ser
 
 ```text
 AI agent
-   | MCP stdio
+   | MCP stdio (locale) / Streamable HTTP (remoto)
    v
 TicketOnChain MCP
    | viem + RPC

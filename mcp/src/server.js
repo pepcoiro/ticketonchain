@@ -1,5 +1,7 @@
 import "dotenv/config";
-import { McpServer } from "@modelcontextprotocol/server";
+import { createServer } from "node:http";
+import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
+import { toNodeHandler, localhostHostValidation, localhostOriginValidation } from "@modelcontextprotocol/node";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import { createPublicClient, formatEther, http, isAddress, parseAbi } from "viem";
 import { z } from "zod";
@@ -206,6 +208,44 @@ function makeServer() {
   return server;
 }
 
-const handle = serveStdio(makeServer);
-console.error("TicketOnChain MCP avviato su stdio.");
-process.on("SIGINT", () => void handle.close());
+const transport = (process.env.MCP_TRANSPORT || "stdio").toLowerCase();
+
+if (transport === "stdio") {
+  const handle = serveStdio(makeServer);
+  console.error("TicketOnChain MCP avviato su stdio.");
+  process.on("SIGINT", () => void handle.close());
+} else if (transport === "http") {
+  const host = process.env.MCP_HOST || "127.0.0.1";
+  const port = Number(process.env.MCP_PORT || 3333);
+  const token = process.env.MCP_AUTH_TOKEN;
+  const loopback = ["127.0.0.1", "localhost", "::1"].includes(host);
+
+  if (!loopback && (!token || token.length < 32)) {
+    throw new Error("Per un bind pubblico configura MCP_AUTH_TOKEN con almeno 32 caratteri e termina TLS su un reverse proxy HTTPS.");
+  }
+
+  const handler = createMcpHandler(makeServer);
+  const nodeHandler = toNodeHandler(handler);
+  const validateHost = loopback ? localhostHostValidation() : null;
+  const validateOrigin = loopback ? localhostOriginValidation() : null;
+
+  const httpServer = createServer((req, res) => {
+    if (req.url?.split("?")[0] !== "/mcp") {
+      res.writeHead(404).end("Not found");
+      return;
+    }
+    if (validateHost && !validateHost(req, res)) return;
+    if (validateOrigin && !validateOrigin(req, res)) return;
+    if (token && req.headers.authorization !== "Bearer " + token) {
+      res.writeHead(401, { "WWW-Authenticate": "Bearer" }).end("Unauthorized");
+      return;
+    }
+    void nodeHandler(req, res);
+  });
+
+  httpServer.listen(port, host, () => {
+    console.error("TicketOnChain MCP Streamable HTTP su http://" + host + ":" + port + "/mcp");
+  });
+} else {
+  throw new Error("MCP_TRANSPORT deve essere 'stdio' oppure 'http'.");
+}
