@@ -1,3 +1,5 @@
+> **Stato attuale:** il frontend web statico è stato rimosso. TicketOnChain si sta evolvendo in un servizio agent-native accessibile tramite MCP. Per installazione, configurazione e test del server consulta [mcp/README.md](mcp/README.md). Le sezioni più avanti che citano il frontend descrivono requisiti storici e l'inventario delle funzioni Solidity, non un'interfaccia mantenuta.
+
 # TicketOnChain
 
 Progetto Web3 per la creazione, l'acquisto e la rivendita regolamentata di biglietti NFT.
@@ -259,7 +261,7 @@ Questo contratto rappresenta i biglietti come NFT ERC-721. La maggior parte dell
 | `BigliettoCreato` | Viene creato un biglietto, con ID, destinatario e URI dei metadati. |
 | `OwnershipTransferStarted` / `OwnershipTransferred` | Inizia o si completa il trasferimento della proprietà amministrativa. |
 
-### 3. Indicazioni pratiche per costruire il frontend
+### 3. Indicazioni pratiche per integrare le funzioni (documentazione storica del frontend)
 
 - **Esplora eventi:** leggere gli eventi tramite `eventi(idEvento)` e usare `prossimoIdEvento()` come limite di scansione, ricordando che gli identificativi partono da 1. Per una lista completa e una ricerca efficiente conviene indicizzare gli eventi `EventoCreato`; il contratto non espone una funzione che restituisca tutti gli eventi in un unico array.
 - **Dettaglio evento:** mostrare prezzo, disponibilità (`quantitaMassima - bigliettiVenduti)), date, stato, organizzatore e politica di rimborso prima dell'acquisto.
