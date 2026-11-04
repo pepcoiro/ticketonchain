@@ -83,20 +83,26 @@ contract MercatoTicketPermessiTest is Test {
         mercato.impostaOrganizzatore(bob, true);
         assertTrue(mercato.organizzatoriAutorizzati(bob));
 
-        vm.warp(block.timestamp + 13 hours);
         mercato.impostaOrganizzatore(bob, false);
         assertFalse(mercato.organizzatoriAutorizzati(bob));
     }
 
-    function testGovernanceDelayApplicaAzioneCritica() public {
+    function testAzioniAmministrativeSonoImmediate() public {
         mercato.impostaOrganizzatore(bob, true);
-
-        vm.expectRevert("MercatoTicket: azione in attesa di governance delay");
         mercato.impostaOrganizzatore(alice, true);
-
-        vm.warp(block.timestamp + 13 hours);
-        mercato.impostaOrganizzatore(alice, true);
+        assertTrue(mercato.organizzatoriAutorizzati(bob));
         assertTrue(mercato.organizzatoriAutorizzati(alice));
+
+        mercato.impostaDestinatarioCommissioni(bob);
+        assertEq(mercato.feeRecipient(), bob);
+
+        mercato.impostaCommissione(200);
+        assertEq(mercato.commissionePuntiBase(), 200);
+
+        mercato.sospendiMercato();
+        assertTrue(mercato.paused());
+        mercato.riattivaMercato();
+        assertFalse(mercato.paused());
     }
 
     function testOrganizzatoreNonAutorizzatoNonPuoCreareEvento() public {
@@ -145,7 +151,6 @@ contract MercatoTicketPermessiTest is Test {
         vm.expectRevert();
         _evento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1 ether, 1);
 
-        vm.warp(block.timestamp + 13 hours);
         mercato.riattivaMercato();
         assertEq(_evento(MercatoTicket.PoliticaRimborso.FondiBloccati, 1 ether, 1), 1);
     }
