@@ -39,19 +39,13 @@ npm run check
 
 ## Test locale con MCP Inspector (stdio)
 
-Avvia:
-
-```bash
-npm start
-```
-
-In un secondo terminale:
+Dopo aver configurato `.env`, avvia direttamente Inspector:
 
 ```bash
 npm run inspect
 ```
 
-Apri l'indirizzo mostrato da Inspector, premi **Connect** e vai in **Tools**. Prova:
+Inspector avvia il processo MCP per conto suo: non serve eseguire contemporaneamente `npm start`. Apri l'indirizzo locale mostrato da Inspector, premi **Connect** e vai in **Tools**. Prova:
 1. `search_events` con `limit=10`;
 2. `get_event_details` con un ID restituito;
 3. `get_ticket_details` con un ID di biglietto esistente;
