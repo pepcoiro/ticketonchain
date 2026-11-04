@@ -22,13 +22,6 @@ import {TicketOnChain} from "./TicketOnChain.sol";
 contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiver {
     using Strings for uint256;
 
-    /// @notice Ritardo amministrativo minimo per azioni governative critiche.
-    /// @dev È un meccanismo di sicurezza che riduce il rischio di azioni impulsive o maliziose.
-    uint256 public constant GOVERNANCE_DELAY = 12 hours;
-
-    /// @notice Timestamp dell'ultima azione governativa critica eseguita.
-    uint256 public lastGovernanceAction;
-
     /// @notice Destinatario dedicato alle commissioni del mercato.
     /// @dev Il wallet del proprietario mantiene la governance, ma la distribuzione
     ///      delle commissioni può essere separata da chi gestisce il contratto.
@@ -188,16 +181,6 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     event IngressoValidato(uint256 indexed idEvento, uint256 indexed idBiglietto, address indexed validatore);
     event ValidatoreIngressoImpostato(uint256 indexed idEvento, address indexed validatore, bool autorizzato);
 
-    modifier onlyOwnerWithGovernanceDelay() {
-        require(msg.sender == owner(), "MercatoTicket: solo proprietario");
-        require(
-            block.timestamp >= lastGovernanceAction + GOVERNANCE_DELAY,
-            "MercatoTicket: azione in attesa di governance delay"
-        );
-        _;
-        lastGovernanceAction = block.timestamp;
-    }
-
     /**
       * @notice Conferma la ricezione dei biglietti trasferiti in custodia al mercato.
       * @dev ERC-721 richiede questa funzione quando si usa safeTransferFrom verso
@@ -224,7 +207,6 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
         contrattoBiglietti = TicketOnChain(indirizzoContrattoBiglietti);
         organizzatoriAutorizzati[msg.sender] = true;
         feeRecipient = msg.sender;
-        lastGovernanceAction = block.timestamp - GOVERNANCE_DELAY;
         emit OrganizzatoreAutorizzato(msg.sender, true);
     }
 
@@ -237,14 +219,14 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
       * @notice Sospende temporaneamente le operazioni di vendita in caso di emergenza.
       * @dev Non blocca prelievi, convalida ingressi o annullamento degli annunci.
       */
-    function sospendiMercato() external onlyOwnerWithGovernanceDelay {
+    function sospendiMercato() external onlyOwner {
         _pause();
     }
 
     /**
       * @notice Riattiva le operazioni di vendita dopo la risoluzione del problema.
       */
-    function riattivaMercato() external onlyOwnerWithGovernanceDelay {
+    function riattivaMercato() external onlyOwner {
         _unpause();
     }
 
@@ -253,7 +235,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
       * @dev Il wallet del proprietario mantiene la governance, ma la distribuzione
       *      delle commissioni può essere separata da chi gestisce il contratto.
       */
-    function impostaDestinatarioCommissioni(address destinatario) external onlyOwnerWithGovernanceDelay {
+    function impostaDestinatarioCommissioni(address destinatario) external onlyOwner {
         require(destinatario != address(0), "MercatoTicket: destinatario non valido");
         feeRecipient = destinatario;
         emit FeeRecipientImpostato(destinatario);
@@ -263,7 +245,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
       * @notice Autorizza o revoca un organizzatore.
       * @dev Solo il proprietario del mercato può gestire l'elenco degli organizzatori.
       */
-    function impostaOrganizzatore(address organizzatore, bool autorizzato) external onlyOwnerWithGovernanceDelay {
+    function impostaOrganizzatore(address organizzatore, bool autorizzato) external onlyOwner {
         require(organizzatore != address(0), "MercatoTicket: organizzatore non valido");
         organizzatoriAutorizzati[organizzatore] = autorizzato;
         emit OrganizzatoreAutorizzato(organizzatore, autorizzato);
@@ -721,7 +703,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
       * @dev Funzione di compatibilità: il proprietario mantiene la governance,
       *      ma il destinatario può essere separato tramite impostaDestinatarioCommissioni().
       */
-    function prelevaCommissioni(address destinatario) external onlyOwnerWithGovernanceDelay nonReentrant {
+    function prelevaCommissioni(address destinatario) external onlyOwner nonReentrant {
         require(destinatario != address(0), "MercatoTicket: destinatario non valido");
         uint256 importo = commissioniAccumulate;
         require(importo > 0, "MercatoTicket: nessuna commissione");
@@ -753,7 +735,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
       * @notice Aggiorna la commissione del mercato.
       * @dev Limite massimo del 10% per evitare impostazioni eccessive accidentali.
       */
-    function impostaCommissione(uint256 nuovaCommissionePuntiBase) external onlyOwnerWithGovernanceDelay {
+    function impostaCommissione(uint256 nuovaCommissionePuntiBase) external onlyOwner {
         require(nuovaCommissionePuntiBase <= 1_000, "MercatoTicket: commissione oltre il 10%");
 
         uint256 vecchiaCommissione = commissionePuntiBase;
