@@ -1,0 +1,23 @@
+{
+  "name": "ticketonchain-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server for TicketOnChain smart contracts",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "check": "node --check src/server.js",
+    "inspect": "npx @modelcontextprotocol/inspector node src/server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "dotenv": "^16.4.7",
+    "viem": "^2.38.5",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/inspector": "^0.18.0"
+  }
+}
