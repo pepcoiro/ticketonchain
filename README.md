@@ -54,7 +54,7 @@ Il sistema è composto da:
 
 ### Prezzi e commissioni
 
-La commissione predefinita è **1,5%** (150 punti base), applicata sia agli acquisti iniziali sia alle rivendite. L'acquirente la paga in aggiunta al prezzo del biglietto. La commissione può essere modificata dall'amministratore fino a un massimo del 10%.
+La commissione iniziale è **1,5%** (150 punti base), applicata sia agli acquisti iniziali sia alle rivendite. L'acquirente la paga in aggiunta al prezzo del biglietto. L'amministratore può ridurla, anche fino allo 0%, ma **non può mai aumentarla**: ogni modifica deve essere pari o inferiore alla commissione attuale. La regola è applicata direttamente dallo smart contract.
 
 Le gas fee della rete sono separate dalla commissione TicketOnChain e vengono pagate dal wallet che invia la transazione.
 
@@ -77,7 +77,7 @@ I rimborsi sono elaborati in lotti tecnici da massimo 20 biglietti per transazio
 ## Amministrazione e sicurezza
 
 - Le funzioni amministrative sono protette da `onlyOwner`.
-- **Non esistono cooldown o governance delay amministrativi:** autorizzazioni, modifiche delle commissioni, cambio del destinatario delle commissioni, prelievo delle commissioni e sospensione/riattivazione del mercato sono immediati per il proprietario.
+- **Non esistono cooldown o governance delay amministrativi:** autorizzazioni, riduzione delle commissioni, cambio del destinatario delle commissioni, prelievo delle commissioni e sospensione/riattivazione del mercato sono immediati per il proprietario. La commissione può soltanto diminuire e non può mai essere aumentata.
 - La sospensione del mercato è quindi disponibile anche per la risposta immediata a un incidente.
 - Il trasferimento della proprietà usa `Ownable2Step`: il nuovo proprietario deve accettare il passaggio.
 - La rinuncia alla proprietà amministrativa è disabilitata.
