@@ -237,7 +237,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
       * @notice Sospende temporaneamente le operazioni di vendita in caso di emergenza.
       * @dev Non blocca prelievi, convalida ingressi o annullamento degli annunci.
       */
-    function sospendiMercato() external onlyOwnerWithGovernanceDelay {
+    function sospendiMercato() external onlyOwner {
         _pause();
     }
 
