@@ -46,7 +46,7 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     mapping(address organizzatore => bool autorizzato) public organizzatoriAutorizzati;
 
     /// @notice Commissione applicata alle vendite, espressa in punti base.
-    /// @dev 100 punti base corrispondono all'1%; 1.000 corrispondono al 10%.
+    /// @dev La commissione parte dall'1,5% e può soltanto diminuire: non può mai essere aumentata.
     uint256 public commissionePuntiBase = 150;
 
     /// @notice Prossimo identificativo disponibile per un evento.
@@ -732,11 +732,14 @@ contract MercatoTicket is Ownable2Step, ReentrancyGuard, Pausable, IERC721Receiv
     }
 
     /**
-      * @notice Aggiorna la commissione del mercato.
-      * @dev Limite massimo del 10% per evitare impostazioni eccessive accidentali.
+      * @notice Riduce la commissione del mercato.
+      * @dev La commissione può essere abbassata dal proprietario, ma non può mai essere aumentata.
       */
     function impostaCommissione(uint256 nuovaCommissionePuntiBase) external onlyOwner {
-        require(nuovaCommissionePuntiBase <= 1_000, "MercatoTicket: commissione oltre il 10%");
+        require(
+            nuovaCommissionePuntiBase <= commissionePuntiBase,
+            "MercatoTicket: la commissione non puo aumentare"
+        );
 
         uint256 vecchiaCommissione = commissionePuntiBase;
         commissionePuntiBase = nuovaCommissionePuntiBase;
